@@ -1,0 +1,12 @@
+node_modules
+.next
+generated
+.git
+.env
+.env.*
+!.env.example
+.data
+*.log
+*.tsbuildinfo
+coverage
+README*.md
