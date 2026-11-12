@@ -57,6 +57,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?Run scripts/docker-up.ps1 first}
       APP_SECRET: ${APP_SECRET:?Run scripts/docker-up.ps1 first}
+      PAYMENT_ENCRYPTION_KEY: ${PAYMENT_ENCRYPTION_KEY:-}
       DASHBOARD_SECRET: ${DASHBOARD_SECRET:?Run scripts/docker-up.ps1 first}
       PUBLIC_SHORT_URL_BASE: ${PUBLIC_SHORT_URL_BASE:-http://localhost:3000}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}

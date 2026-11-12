@@ -18,12 +18,14 @@ if (-not (Test-Path -LiteralPath $envPath)) {
   $dbPassword = New-HexSecret 24
   $appSecret = New-HexSecret 48
   $dashboardSecret = New-HexSecret 12
+  $paymentKey = [Convert]::ToBase64String([byte[]](1..32 | ForEach-Object { [Convert]::ToByte((New-HexSecret 1),16) }))
   $content = @(
     "POSTGRES_USER=t4v"
     "POSTGRES_PASSWORD=$dbPassword"
     "POSTGRES_DB=t4v"
     "DATABASE_URL=postgresql://t4v:$dbPassword@db:5432/t4v?schema=public"
     "APP_SECRET=$appSecret"
+    "PAYMENT_ENCRYPTION_KEY=$paymentKey"
     "DASHBOARD_SECRET=$dashboardSecret"
     "APP_DOMAIN=t4v.ir"
     "PUBLIC_SHORT_URL_BASE=http://localhost:3000"

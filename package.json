@@ -6,6 +6,7 @@
   "scripts": {
     "admin:create": "node scripts/create-admin.mjs",
     "test:admin": "node scripts/test-admin.mjs",
+    "test:payments": "node scripts/test-payments.mjs",
     "dev:local": "node scripts/dev-local.mjs",
     "test:local": "node scripts/smoke-test.mjs",
     "worker": "node scripts/analytics-worker.mjs",

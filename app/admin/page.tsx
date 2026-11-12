@@ -88,9 +88,32 @@ export default async function AdminPage({
                 داشبورد کاربر
               </Link>
               <DashboardLogoutButton />
+              <Link href="/admin/payments" className="button-primary">
+                درگاه‌ها و پرداخت‌ها
+              </Link>
             </div>
           </div>
 
+          <nav className="mt-7 flex flex-wrap gap-3" aria-label="منوی مدیریت">
+            <Link className="button-primary" href="/admin">
+              مدیریت سراسری
+            </Link>
+            <Link className="button-secondary" href="/admin/payments">
+              تنظیم درگاه‌ها
+            </Link>
+            <Link
+              className="button-secondary"
+              href="/admin/payments?view=transactions"
+            >
+              تراکنش‌ها و رسیدها
+            </Link>
+            <Link
+              className="button-secondary"
+              href="/admin/payments?view=audit"
+            >
+              گزارش تغییرات پرداخت
+            </Link>
+          </nav>
           <AdminTopUpsPanel initialTopUps={topUps} />
 
           <AdminUsersPanel

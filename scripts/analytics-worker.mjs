@@ -14,6 +14,7 @@ process.on("SIGTERM", () => {
   running = false;
 });
 let lastCleanup = 0;
+let lastPaymentMaintenance = 0;
 while (running) {
   try {
     await pool.query(`WITH picked AS (
@@ -25,6 +26,18 @@ while (running) {
     ), counts AS (SELECT link_code, COUNT(*)::int AS n FROM inserted GROUP BY link_code), bumped AS (
       UPDATE short_links s SET click_count=s.click_count+counts.n FROM counts WHERE s.code=counts.link_code RETURNING s.code
     ) DELETE FROM click_events WHERE id IN (SELECT id FROM picked)`);
+    if (Date.now() - lastPaymentMaintenance > 60_000) {
+      await pool.query(
+        `WITH expired AS (UPDATE payments SET status='expired' WHERE status='pending' AND expires_at<NOW() AND verify_lease_until IS NULL RETURNING id) INSERT INTO payment_events(payment_id,kind) SELECT id,'expired' FROM expired`,
+      );
+      await pool.query(
+        "UPDATE payments SET status='request_unknown',error_code='creation_interrupted' WHERE status='creating' AND created_at<NOW()-interval '5 minutes'",
+      );
+      await pool.query(
+        "UPDATE payments SET status='pending',verify_lease_until=NULL,error_code='verification_interrupted' WHERE status='verifying' AND verify_lease_until<NOW()",
+      );
+      lastPaymentMaintenance = Date.now();
+    }
     if (Date.now() - lastCleanup > 3_600_000) {
       await pool.query(
         "DELETE FROM rate_limits WHERE reset_at < NOW() - interval '1 day'",

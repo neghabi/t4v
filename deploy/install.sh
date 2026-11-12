@@ -24,6 +24,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   DB_PASSWORD="$(openssl rand -hex 24)"
   APP_SECRET="$(openssl rand -hex 48)"
   DASHBOARD_SECRET="$(openssl rand -hex 12)"
+  PAYMENT_ENCRYPTION_KEY="$(openssl rand -base64 32)"
 
   cat >"${ENV_FILE}" <<EOF
 POSTGRES_USER=t4v
@@ -31,6 +32,7 @@ POSTGRES_PASSWORD=${DB_PASSWORD}
 POSTGRES_DB=t4v
 DATABASE_URL=postgresql://t4v:${DB_PASSWORD}@db:5432/t4v?schema=public
 APP_SECRET=${APP_SECRET}
+PAYMENT_ENCRYPTION_KEY=${PAYMENT_ENCRYPTION_KEY}
 DASHBOARD_SECRET=${DASHBOARD_SECRET}
 APP_DOMAIN=${APP_DOMAIN}
 PUBLIC_SHORT_URL_BASE=https://${APP_DOMAIN}

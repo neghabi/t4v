@@ -152,9 +152,55 @@ model Payment {
   createdAt DateTime @default(now()) @map("created_at")
   expiresAt DateTime @map("expires_at")
   paidAt DateTime? @map("paid_at")
+  gatewayId String? @map("gateway_id") @db.VarChar(24)
+  gatewayMode String? @map("gateway_mode") @db.VarChar(16)
+  credentialSnapshot String? @map("credential_snapshot") @db.Text
+  authority String? @db.VarChar(128)
+  reference String? @db.VarChar(128)
+  callbackToken String? @map("callback_token") @db.VarChar(64)
+  errorCode String? @map("error_code") @db.VarChar(64)
+  verifiedAt DateTime? @map("verified_at")
+  verifyLeaseUntil DateTime? @map("verify_lease_until")
+  events PaymentEvent[]
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, gatewayMode, authority])
+  @@unique([provider, gatewayMode, reference])
+  @@index([status,createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@map("payments")
+}
+
+model GatewayConfig {
+  id String @id @db.VarChar(24)
+  title String @db.VarChar(80)
+  enabled Boolean @default(false)
+  mode String @default("sandbox") @db.VarChar(16)
+  credentialCiphertext String? @map("credential_ciphertext") @db.Text
+  unitPriceRial Int @default(1000) @map("unit_price_rial")
+  priority Int @default(10)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("gateway_configs")
+}
+
+model PaymentEvent {
+  id BigInt @id @default(autoincrement())
+  paymentId String @map("payment_id") @db.VarChar(24)
+  kind String @db.VarChar(40)
+  code String? @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+  payment Payment @relation(fields:[paymentId],references:[id],onDelete:Cascade)
+  @@index([paymentId,createdAt])
+  @@map("payment_events")
+}
+
+model GatewayAudit {
+  id BigInt @id @default(autoincrement())
+  actor String @db.VarChar(64)
+  gatewayId String @map("gateway_id") @db.VarChar(24)
+  action String @db.VarChar(40)
+  details Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("gateway_audit")
 }
 
 model CreditLedger {

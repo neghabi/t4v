@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth/getSessionUser";
 import { prisma } from "@/lib/db";
-import { createSandboxPayment } from "@/lib/payments";
+import { createPayment } from "@/lib/payments";
 import { apiErrorResponse, ApiError } from "@/lib/apiResponse";
-import { localServicesEnabled } from "@/lib/localServices";
+import { publicGateways } from "@/lib/gatewayConfig";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function GET(request: NextRequest) {
@@ -23,10 +23,12 @@ export async function GET(request: NextRequest) {
       status: true,
       createdAt: true,
       paidAt: true,
+      reference: true,
+      gatewayMode: true,
     },
   });
   return NextResponse.json(
-    { enabled: localServicesEnabled(), payments },
+    { gateways: await publicGateways(), payments },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }
@@ -45,10 +47,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (typeof body?.credits !== "number")
       throw new ApiError("بستهٔ اعتبار معتبر نیست.");
-    const payment = await createSandboxPayment(
+    if (body.gatewayId !== undefined && typeof body.gatewayId !== "string")
+      throw new ApiError("درگاه معتبر نیست.");
+    const payment = await createPayment(
       user.id,
       body.credits,
       request.headers.get("Idempotency-Key") ?? "",
+      body.gatewayId,
     );
     return NextResponse.json(
       { id: payment.id, checkoutUrl: `/checkout/${payment.id}` },
