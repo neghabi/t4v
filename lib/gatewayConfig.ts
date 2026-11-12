@@ -64,6 +64,13 @@ export function gatewayIssue(row: {
   credentialCiphertext: string | null;
 }) {
   try {
+    if (
+      row.mode === "live" &&
+      (!process.env.PAYMENT_ENCRYPTION_KEY ||
+        !process.env.APP_SECRET ||
+        process.env.APP_SECRET.length < 32)
+    )
+      return "برای پرداخت واقعی، کلید رمزنگاری پرداخت و کلید امن برنامه را روی سرور تنظیم کنید.";
     if (row.mode === "sandbox" && !localServicesEnabled())
       return "درگاه آزمایشی برای شارژ حساب فقط در محیط توسعه فعال می‌شود.";
     if (row.id === "local")

@@ -38,7 +38,12 @@ export function BillingPanel({
         setSelected(d.gateways?.[0]?.id ?? "");
         setLoaded(true);
       })
-      .catch(() => setError("دریافت رسیدها ممکن نشد."));
+      .catch(() => {
+        setLoaded(true);
+        setError(
+          "دریافت درگاه‌ها و رسیدها ممکن نشد؛ صفحه را دوباره بارگذاری کنید.",
+        );
+      });
   }, []);
   async function buy(credits: number) {
     setBusy(true);
@@ -108,26 +113,29 @@ export function BillingPanel({
                 : "در حال دریافت درگاه‌های فعال…"}
             </p>
           )}
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[100, 500, 1000, 5000].map((n) => (
-              <button
-                disabled={busy || !selected}
-                key={n}
-                className="button-secondary"
-                onClick={() => buy(n)}
-              >
-                {n.toLocaleString("fa-IR")} اعتبار
-                <span className="block text-xs font-normal">
-                  {(
-                    n *
-                    (gateways.find((g) => g.id === selected)?.unitPriceRial ??
-                      0)
-                  ).toLocaleString("fa-IR")}{" "}
-                  ریال
-                </span>
-              </button>
-            ))}
-          </div>
+          {selected && (
+            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[100, 500, 1000, 5000].map((n) => (
+                <button
+                  disabled={busy || !selected}
+                  key={n}
+                  className="button-secondary"
+                  style={{ flexDirection: "column", gap: 5, paddingBlock: 16 }}
+                  onClick={() => buy(n)}
+                >
+                  {n.toLocaleString("fa-IR")} اعتبار
+                  <span className="block text-xs font-normal">
+                    {(
+                      n *
+                      (gateways.find((g) => g.id === selected)?.unitPriceRial ??
+                        0)
+                    ).toLocaleString("fa-IR")}{" "}
+                    ریال
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
           {error && (
             <p role="alert" className="notice notice-error">
               {error}

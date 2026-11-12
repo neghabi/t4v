@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { randomBytes, createHash } from "node:crypto";
 import ts from "typescript";
 import pg from "pg";
+import { spawn } from "node:child_process";
 // Exercise provider contracts with controlled responses, never real payments.
 const source = readFileSync(
   new URL("../lib/paymentProviders.ts", import.meta.url),
@@ -325,6 +326,57 @@ try {
   console.log(
     "PASS online payment boundary: regular-user rejection, blocked manual confirmation, forged callback token/authority rejection, no unverified credits, filtered admin list/detail/CSV and private receipt",
   );
+  const maintenanceIds = [`exp-${marker}`, `crt-${marker}`, `vrf-${marker}`];
+  for (const [index, id] of maintenanceIds.entries())
+    await pool.query(
+      "INSERT INTO payments(id,user_id,credits,amount,provider,request_key,expires_at,status,created_at,verify_lease_until) VALUES($1,$2,100,100000,'sandbox',$3,CASE WHEN $4=0 THEN NOW()-interval '1 minute' ELSE NOW()+interval '15 minutes' END,$5,NOW()-interval '6 minutes',CASE WHEN $4=2 THEN NOW()-interval '1 minute' ELSE NULL END)",
+      [
+        id,
+        userId,
+        createHash("sha256").update(id).digest("hex"),
+        index,
+        ["pending", "creating", "verifying"][index],
+      ],
+    );
+  const worker = spawn(
+    process.execPath,
+    [
+      new URL("./analytics-worker.mjs", import.meta.url).pathname.replace(
+        /^\/(\w:)/,
+        "$1",
+      ),
+    ],
+    {
+      env: {
+        ...process.env,
+        DATABASE_URL: `postgresql://t4v:${config.password}@127.0.0.1:55432/t4v`,
+      },
+      stdio: "ignore",
+      windowsHide: true,
+    },
+  );
+  try {
+    let current = [];
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const r = await pool.query(
+        "SELECT id,status FROM payments WHERE id=ANY($1::text[])",
+        [maintenanceIds],
+      );
+      current = maintenanceIds.map(
+        (id) => r.rows.find((row) => row.id === id)?.status,
+      );
+      if (current.join(",") === "expired,request_unknown,pending") break;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    assert.deepEqual(current, ["expired", "request_unknown", "pending"]);
+    console.log(
+      "PASS payment maintenance: expiration and recovery from interrupted request/verification",
+    );
+  } finally {
+    const stopped = new Promise((resolve) => worker.once("exit", resolve));
+    worker.kill();
+    await stopped;
+  }
 } finally {
   if (userId) await pool.query("DELETE FROM users WHERE id=$1", [userId]);
   if (original && !original.enabled && !original.credential_ciphertext)

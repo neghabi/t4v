@@ -26,7 +26,10 @@ async function post(url: string, body: unknown, transport: Transport) {
       cache: "no-store",
     });
     if (!r.ok) throw new GatewayError(`http_${r.status}`);
-    return await r.json();
+    const data = await r.json();
+    if (!data || typeof data !== "object" || Array.isArray(data))
+      throw new GatewayError("invalid_response");
+    return data;
   } catch (e) {
     if (e instanceof GatewayError) throw e;
     throw new GatewayError("network_error");

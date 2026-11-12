@@ -427,7 +427,7 @@ export function AdminPaymentsPanel({ view }: { view: string }) {
         </section>
       ) : (
         <>
-          <div className="stat-grid mb-6">
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
             <div className="stat-card">
               <p className="section-note">دریافت تأییدشدهٔ واقعی (کل سامانه)</p>
               <strong className="mt-3 block text-xl">

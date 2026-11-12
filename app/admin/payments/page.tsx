@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/SiteChrome";
 import { DashboardLogin } from "@/components/DashboardLogin";
 import { AdminPaymentsPanel } from "@/components/AdminPaymentsPanel";
 import { ProtectedPageGuard } from "@/components/ProtectedPageGuard";
+import { DashboardLogoutButton } from "@/components/DashboardLogoutButton";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "مدیریت درگاه‌ها و پرداخت",
@@ -28,9 +29,10 @@ export default async function Page({
       {authed ? (
         <main className="site-container py-10">
           <ProtectedPageGuard kind="admin" />
-          <h1 className="mb-3 text-2xl font-bold">
-            مدیریت درگاه‌ها و پرداخت‌ها
-          </h1>
+          <div className="mb-3 flex flex-wrap justify-between gap-4">
+            <h1 className="text-2xl font-bold">مدیریت درگاه‌ها و پرداخت‌ها</h1>
+            <DashboardLogoutButton />
+          </div>
           <p className="section-note mb-8">
             تنظیم اتصال، نظارت بر تراکنش‌ها و پیگیری امن نتیجهٔ پرداخت.
           </p>
