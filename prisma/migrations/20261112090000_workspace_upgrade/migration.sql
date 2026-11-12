@@ -1,0 +1,14 @@
+ALTER TABLE "users" ADD COLUMN "email_verified_at" TIMESTAMP(3);
+ALTER TABLE "sessions" ADD COLUMN "user_agent" VARCHAR(512);
+ALTER TABLE "api_keys" ADD COLUMN "scopes" TEXT[] NOT NULL DEFAULT ARRAY['links:read', 'links:write']::TEXT[];
+ALTER TABLE "short_links" ADD COLUMN "title" VARCHAR(120) NOT NULL DEFAULT '', ADD COLUMN "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[], ADD COLUMN "request_key" CHAR(64), ADD COLUMN "request_signature" CHAR(64);
+CREATE UNIQUE INDEX "short_links_request_key_key" ON "short_links"("request_key");
+ALTER TABLE "link_clicks" ADD COLUMN "event_id" VARCHAR(24);
+CREATE UNIQUE INDEX "link_clicks_event_id_key" ON "link_clicks"("event_id");
+CREATE TABLE "auth_action_tokens" ("token_hash" CHAR(64) PRIMARY KEY, "user_id" VARCHAR(24) NOT NULL REFERENCES "users"("id") ON DELETE CASCADE, "kind" VARCHAR(16) NOT NULL, "expires_at" TIMESTAMP(3) NOT NULL, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "auth_action_tokens_expires_at_idx" ON "auth_action_tokens"("expires_at");
+CREATE TABLE "click_events" ("id" VARCHAR(24) PRIMARY KEY, "link_code" VARCHAR(32) NOT NULL REFERENCES "short_links"("code") ON DELETE CASCADE, "clicked_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "referer" TEXT, "user_agent" TEXT, "ip_hash" CHAR(64), "attempts" INTEGER NOT NULL DEFAULT 0, "available_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "click_events_available_at_idx" ON "click_events"("available_at");
+CREATE TABLE "payments" ("id" VARCHAR(24) PRIMARY KEY, "user_id" VARCHAR(24) NOT NULL REFERENCES "users"("id") ON DELETE CASCADE, "credits" INTEGER NOT NULL CHECK ("credits" > 0), "amount" INTEGER NOT NULL CHECK ("amount" > 0), "currency" VARCHAR(3) NOT NULL DEFAULT 'IRR', "provider" VARCHAR(24) NOT NULL DEFAULT 'sandbox', "status" VARCHAR(16) NOT NULL DEFAULT 'pending', "request_key" CHAR(64) NOT NULL, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "expires_at" TIMESTAMP(3) NOT NULL, "paid_at" TIMESTAMP(3));
+CREATE UNIQUE INDEX "payments_request_key_key" ON "payments"("request_key");
+CREATE INDEX "payments_user_id_created_at_idx" ON "payments"("user_id", "created_at" DESC);

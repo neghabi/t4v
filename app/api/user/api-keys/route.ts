@@ -31,9 +31,9 @@ export async function POST(request: NextRequest) {
     );
   }
   try {
-    const body = (await request.json()) as { name?: unknown };
+    const body = (await request.json()) as { name?: unknown; scopes?: unknown };
     const name = typeof body.name === "string" ? body.name : "";
-    const result = await createApiKey(user.id, name);
+    const result = await createApiKey(user.id, name, body.scopes);
     return NextResponse.json(result, { status: 201, headers: noStore });
   } catch (error) {
     return NextResponse.json(

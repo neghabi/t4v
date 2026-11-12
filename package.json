@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "admin:create": "node scripts/create-admin.mjs",
+    "test:admin": "node scripts/test-admin.mjs",
+    "dev:local": "node scripts/dev-local.mjs",
+    "test:local": "node scripts/smoke-test.mjs",
+    "worker": "node scripts/analytics-worker.mjs",
     "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -33,8 +38,10 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "embedded-postgres": "18.6.0-beta.19",
     "eslint": "^9",
     "eslint-config-next": "^16.3.1",
+    "prettier": "^3.10.0",
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "typescript": "^5"

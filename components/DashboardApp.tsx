@@ -1,309 +1,301 @@
 "use client";
-
-import type { LucideIcon } from "lucide-react";
-import {
-  Home,
-  KeyRound,
-  Link2,
-  LogOut,
-  Plus,
-  Send,
-  Settings2,
-  WalletCards,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import type { ApiKeyPublic } from "@/lib/apiKeyStore";
-import type { CreditTopUpPublic } from "@/lib/creditTopUpShared";
-import type { ListedLink } from "@/lib/urlStore";
-import type { LedgerEntry, UserPublic } from "@/lib/userStore";
 import {
-  CREDIT_COST_QR_STANDALONE,
-  CREDIT_COST_SHORTEN,
-  CREDIT_COST_SIMULATED_SEND,
-  INITIAL_USER_CREDITS,
-} from "@/lib/credits";
-import { ApiKeysPanel } from "@/components/ApiKeysPanel";
+  Link2,
+  BarChart3,
+  Wallet,
+  KeyRound,
+  Shield,
+  Plus,
+  LogOut,
+  X,
+  ArrowUpRight,
+} from "lucide-react";
+import { Brand } from "@/components/SiteChrome";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LinkStudio } from "@/components/LinkStudio";
 import { DashboardLinksPanel } from "@/components/DashboardLinksPanel";
-import { ProtectedPageGuard } from "@/components/ProtectedPageGuard";
+import { AnalyticsPanel } from "@/components/AnalyticsPanel";
+import { SecurityPanel } from "@/components/SecurityPanel";
+import { BillingPanel } from "@/components/BillingPanel";
+import { ApiKeysPanel } from "@/components/ApiKeysPanel";
 import { CreditTopUpPanel } from "@/components/CreditTopUpPanel";
-
-type Tab = "links" | "credits" | "api" | "settings";
+import type { CreditTopUpPublic } from "@/lib/creditTopUpShared";
+import type { ApiKeyPublic } from "@/lib/apiKeyStore";
+import type { UserPublic, LedgerEntry } from "@/lib/userStore";
+import type { LinkPage } from "@/lib/urlStore";
 
 export function DashboardApp({
-  user: initialUser,
-  initialLinks,
+  user,
+  linksPage,
   initialLedger,
-  initialApiKeys,
   initialTopUps,
+  initialApiKeys,
   baseUrl,
   nowMs,
+  summary,
+  params,
+  verified,
+  local,
 }: {
   user: UserPublic;
-  initialLinks: ListedLink[];
+  linksPage: LinkPage;
   initialLedger: LedgerEntry[];
-  initialApiKeys: ApiKeyPublic[];
   initialTopUps: CreditTopUpPublic[];
+  initialApiKeys: ApiKeyPublic[];
   baseUrl: string;
   nowMs: number;
+  summary: {
+    totalLinks: number;
+    activeLinks: number;
+    totalClicks: number;
+    clicksLast24h: number;
+  };
+  params: Record<string, string | undefined>;
+  verified: boolean;
+  local: boolean;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("links");
-  const [user, setUser] = useState(initialUser);
-  const [ledger, setLedger] = useState(initialLedger);
-  const [sendMsg, setSendMsg] = useState<string | null>(null);
-  const [sendErr, setSendErr] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-
-  const tabs = useMemo(
-    () =>
-      [
-        { id: "links" as const, label: "لینک‌های من", icon: Link2 },
-        { id: "credits" as const, label: "اعتبار و ارسال", icon: WalletCards },
-        { id: "api" as const, label: "API و کلیدها", icon: KeyRound },
-        { id: "settings" as const, label: "تنظیمات حساب", icon: Settings2 },
-      ] satisfies { id: Tab; label: string; icon: LucideIcon }[],
-    [],
-  );
-
-  async function simulateSend() {
-    setSendMsg(null);
-    setSendErr(null);
-    setSending(true);
-    try {
-      const response = await fetch("/api/credits/use", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send" }),
-      });
-      const data = (await response.json()) as {
-        user?: UserPublic;
-        error?: string;
-        message?: string;
-        ledger?: LedgerEntry[];
-      };
-      if (!response.ok) throw new Error(data.error ?? "خطا");
-      if (data.user) setUser(data.user);
-      if (data.ledger) setLedger(data.ledger);
-      setSendMsg(data.message ?? "ثبت شد.");
-      router.refresh();
-    } catch (error) {
-      setSendErr(error instanceof Error ? error.message : "خطا");
-    } finally {
-      setSending(false);
-    }
+  const [creating, setCreating] = useState(false);
+  const closeDialog = useCallback(() => setCreating(false), []);
+  useDialogFocus(creating, closeDialog);
+  useEffect(() => {
+    if (!creating) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCreating(false);
+    };
+    document.addEventListener("keydown", handler);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = previous;
+    };
+  }, [creating]);
+  const view = params.view ?? "links";
+  const nav = [
+    { id: "links", label: "لینک‌های من", icon: Link2 },
+    { id: "analytics", label: "گزارش‌ها", icon: BarChart3 },
+    { id: "billing", label: "اعتبار و پرداخت", icon: Wallet },
+    { id: "api", label: "کلیدهای API", icon: KeyRound },
+    { id: "security", label: "امنیت حساب", icon: Shield },
+  ];
+  function pageHref(page: number) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v) q.set(k, v);
+    });
+    q.set("page", String(page));
+    return `/dashboard?${q}`;
   }
-
-  async function logout() {
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        cache: "no-store",
-      });
-    } finally {
-      window.location.replace("/");
-    }
-  }
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 md:px-8">
-      <ProtectedPageGuard kind="user" />
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs text-slate-500 dark:text-zinc-400" dir="ltr">
+    <div className="app-frame">
+      <aside className="app-sidebar">
+        <Brand />
+        <p className="sidebar-caption">فضای کاری شما</p>
+        <nav className="grid gap-1">
+          {nav.map((n) => (
+            <Link
+              key={n.id}
+              href={`/dashboard?view=${n.id}`}
+              className={`sidebar-item ${view === n.id ? "active" : ""}`}
+            >
+              <n.icon size={18} />
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="mt-auto hidden pt-10 md:block">
+          <Link href="/" className="sidebar-item">
+            <ArrowUpRight size={18} />
+            مشاهده وب‌سایت
+          </Link>
+          <button
+            className="sidebar-item w-full"
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              router.push("/");
+              router.refresh();
+            }}
+          >
+            <LogOut size={18} />
+            خروج از حساب
+          </button>
+          <p className="mt-5 truncate text-xs text-[var(--muted)]" dir="ltr">
             {user.email}
           </p>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white md:text-3xl">
-            داشبورد کاربری
+        </div>
+      </aside>
+      <div className="app-main">
+        <header className="app-topbar">
+          <h1 className="text-lg font-bold">
+            {nav.find((n) => n.id === view)?.label ?? "لینک‌های من"}
           </h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            اعتبار فعلی:{" "}
-            <span className="font-semibold text-brand-700 dark:text-brand-200">
-              {user.credits}
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm sm:inline">
+              {user.credits.toLocaleString("fa-IR")} اعتبار
             </span>
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
-          >
-            <Home className="size-4" strokeWidth={1.9} aria-hidden />
-            خانه
-          </Link>
-          <Link
-            href="/#tool"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-brand-600 to-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-brand-500/20 transition hover:brightness-110"
-          >
-            <Plus className="size-4" strokeWidth={2} aria-hidden />
-            ابزار کوتاه‌سازی
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-8 flex gap-2 overflow-x-auto rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-        {tabs.map((item) => {
-          const Icon = item.icon;
-          return (
+            <ThemeToggle />
             <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                tab === item.id
-                  ? "bg-slate-900 text-white shadow dark:bg-white dark:text-slate-900"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
-              }`}
+              className="button-primary"
+              onClick={() => setCreating(true)}
             >
-              <Icon className="size-4" strokeWidth={1.9} aria-hidden />
-              {item.label}
+              <Plus size={17} />
+              لینک جدید
             </button>
-          );
-        })}
-      </div>
-
-      {tab === "links" ? (
-        <DashboardLinksPanel
-          initialLinks={initialLinks}
-          baseUrl={baseUrl}
-          nowMs={nowMs}
-        />
-      ) : null}
-
-      {tab === "credits" ? (
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              قوانین مصرف اعتبار
-            </h2>
-            <ul className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
-              <li>
-                • ثبت‌نام:{" "}
-                <strong className="text-slate-900 dark:text-white">
-                  {INITIAL_USER_CREDITS}
-                </strong>{" "}
-                اعتبار هدیه
-              </li>
-              <li>
-                • هر کوتاه‌سازی لینک:{" "}
-                <strong className="text-slate-900 dark:text-white">
-                  {CREDIT_COST_SHORTEN}
-                </strong>{" "}
-                اعتبار
-              </li>
-              <li>
-                • ساخت QR مستقل:{" "}
-                <strong className="text-slate-900 dark:text-white">
-                  {CREDIT_COST_QR_STANDALONE}
-                </strong>{" "}
-                اعتبار
-              </li>
-              <li>
-                • ارسال شبیه‌سازی‌شده:{" "}
-                <strong className="text-slate-900 dark:text-white">
-                  {CREDIT_COST_SIMULATED_SEND}
-                </strong>{" "}
-                اعتبار
-              </li>
-            </ul>
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-400">
-              ارسال در این نسخه شبیه‌سازی شده است و برای اتصال به سرویس پیامک یا
-              پوش آماده توسعه است.
-            </div>
-            <button
-              type="button"
-              onClick={() => void simulateSend()}
-              disabled={sending || user.credits < CREDIT_COST_SIMULATED_SEND}
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-300/50 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-900 hover:bg-violet-500/15 disabled:cursor-not-allowed disabled:opacity-40 dark:border-violet-400/30 dark:text-violet-100"
-            >
-              <Send className="size-4" strokeWidth={1.9} aria-hidden />
-              {sending
-                ? "در حال ثبت…"
-                : `ثبت ارسال شبیه‌سازی‌شده (−${CREDIT_COST_SIMULATED_SEND})`}
-            </button>
-            {sendMsg ? (
-              <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">
-                {sendMsg}
-              </p>
-            ) : null}
-            {sendErr ? (
-              <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
-                {sendErr}
-              </p>
-            ) : null}
           </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              سوابق اعتبار
-            </h2>
-            <ul className="mt-4 max-h-[420px] space-y-2 overflow-auto text-sm">
-              {ledger.length === 0 ? (
-                <li className="text-slate-500">هنوز تراکنشی ثبت نشده است.</li>
-              ) : (
-                ledger.map((entry, index) => (
-                  <li
-                    key={`${entry.at}-${index}`}
-                    className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-white/5 dark:bg-slate-950/30"
+        </header>
+        <main className="app-content">
+          <div className="stat-grid mb-7">
+            {[
+              { label: "تمام لینک‌ها", value: summary.totalLinks },
+              { label: "لینک‌های فعال", value: summary.activeLinks },
+              { label: "کل بازدیدها", value: summary.totalClicks },
+              { label: "بازدید در ۲۴ ساعت", value: summary.clicksLast24h },
+            ].map((s) => (
+              <div className="stat-card" key={s.label}>
+                <p className="section-note">{s.label}</p>
+                <strong className="mt-3 block text-3xl">
+                  {s.value.toLocaleString("fa-IR")}
+                </strong>
+              </div>
+            ))}
+          </div>
+          {view === "analytics" ? (
+            <AnalyticsPanel />
+          ) : view === "security" ? (
+            <SecurityPanel
+              email={user.email}
+              verified={verified}
+              local={local}
+            />
+          ) : view === "billing" ? (
+            <>
+              <BillingPanel
+                credits={user.credits}
+                ledger={initialLedger}
+                local={local}
+              />
+              <div className="mt-6">
+                <CreditTopUpPanel initialTopUps={initialTopUps} />
+              </div>
+            </>
+          ) : view === "api" ? (
+            <ApiKeysPanel initialApiKeys={initialApiKeys} baseUrl={baseUrl} />
+          ) : (
+            <>
+              <form
+                action="/dashboard"
+                className="mb-5 flex flex-wrap items-center gap-3"
+              >
+                <input
+                  className="field min-w-40 flex-1"
+                  name="q"
+                  aria-label="جست‌وجوی لینک‌ها"
+                  placeholder="جست‌وجو در عنوان، آدرس یا برچسب…"
+                  defaultValue={params.q}
+                />
+                <select
+                  name="status"
+                  aria-label="وضعیت لینک"
+                  className="field !w-auto"
+                  defaultValue={params.status ?? ""}
+                >
+                  <option value="">همه وضعیت‌ها</option>
+                  <option value="active">فعال</option>
+                  <option value="expired">منقضی</option>
+                  <option value="protected">رمزدار</option>
+                </select>
+                <select
+                  name="sort"
+                  aria-label="ترتیب لینک‌ها"
+                  className="field !w-auto"
+                  defaultValue={params.sort ?? "newest"}
+                >
+                  <option value="newest">جدیدترین</option>
+                  <option value="oldest">قدیمی‌ترین</option>
+                  <option value="clicks">پربازدیدترین</option>
+                </select>
+                <button className="button-secondary">اعمال</button>
+                <a
+                  className="button-secondary"
+                  href={`/api/user/export?${new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => !!entry[1]))}`}
+                >
+                  خروجی CSV
+                </a>
+              </form>
+              <DashboardLinksPanel
+                key={JSON.stringify(linksPage.links)}
+                initialLinks={linksPage.links}
+                baseUrl={baseUrl}
+                nowMs={nowMs}
+              />
+              <nav
+                aria-label="صفحه‌بندی لینک‌ها"
+                className="mt-5 flex items-center justify-between text-sm"
+              >
+                {linksPage.page > 1 ? (
+                  <Link
+                    className="button-secondary"
+                    href={pageHref(linksPage.page - 1)}
                   >
-                    <span className="text-slate-700 dark:text-slate-200">
-                      {entry.reason}
-                    </span>
-                    <span
-                      className={`shrink-0 font-mono text-xs ${
-                        entry.delta >= 0
-                          ? "text-emerald-700 dark:text-emerald-300"
-                          : "text-rose-600 dark:text-rose-300"
-                      }`}
-                      dir="ltr"
-                    >
-                      {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
+                    صفحهٔ قبل
+                  </Link>
+                ) : (
+                  <span />
+                )}
+                <span>
+                  {linksPage.total.toLocaleString("fa-IR")} لینک · صفحه{" "}
+                  {linksPage.page.toLocaleString("fa-IR")} از{" "}
+                  {linksPage.totalPages.toLocaleString("fa-IR")}
+                </span>
+                {linksPage.page < linksPage.totalPages ? (
+                  <Link
+                    className="button-secondary"
+                    href={pageHref(linksPage.page + 1)}
+                  >
+                    صفحه بعد
+                  </Link>
+                ) : (
+                  <span />
+                )}
+              </nav>
+            </>
+          )}
+        </main>
+      </div>
+      {creating && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCreating(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-title"
+            className="modal-card"
+          >
+            <div className="mb-5 flex justify-between">
+              <h2 id="create-title" className="text-xl font-bold">
+                یک لینک تازه بسازید
+              </h2>
+              <button
+                className="icon-button"
+                aria-label="بستن"
+                onClick={() => setCreating(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <LinkStudio compact onCreated={() => router.refresh()} />
+          </section>
         </div>
-      ) : null}
-
-      {tab === "api" ? (
-        <ApiKeysPanel initialApiKeys={initialApiKeys} baseUrl={baseUrl} />
-      ) : null}
-
-      {tab === "settings" ? (
-        <div>
-          <CreditTopUpPanel initialTopUps={initialTopUps} />
-          <div className="mt-6 max-w-xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              تنظیمات حساب
-            </h2>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-              تم روشن یا تیره از نوار بالای سایت قابل تغییر است و در مرورگر
-              ذخیره می‌شود.
-            </p>
-            <p
-              className="mt-4 text-sm text-slate-600 dark:text-slate-400"
-              dir="ltr"
-            >
-              شناسه کاربری:{" "}
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-slate-900">
-                {user.id}
-              </code>
-            </p>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-rose-300/60 bg-rose-500/5 px-5 py-3 text-sm font-semibold text-rose-800 hover:bg-rose-500/10 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-100"
-            >
-              <LogOut className="size-4" strokeWidth={1.9} aria-hidden />
-              خروج از حساب
-            </button>
-          </div>
-        </div>
-      ) : null}
+      )}
     </div>
   );
 }

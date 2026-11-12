@@ -2,6 +2,8 @@ import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { SiteHeader } from "@/components/SiteChrome";
 
+export const metadata = { title: "ساخت حساب", robots: { index: false, follow: false } };
+
 export default function RegisterPage() {
   return (
     <div className="mesh-bg flex min-h-[100dvh] flex-col">

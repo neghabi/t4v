@@ -1,11 +1,13 @@
 import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { GATE_COOKIE_NAME, verifyGatePayload } from "@/lib/gateToken";
-import { getRecord, recordClick } from "@/lib/urlStore";
+import { getRecord, recordClick, enqueueClick } from "@/lib/urlStore";
 import { LinkGateForm } from "@/components/LinkGateForm";
 
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false } };
 
 export default async function ShortLinkPage({
   params,
@@ -49,19 +51,30 @@ export default async function ShortLinkPage({
   const jar = await cookies();
   const gateCookie = jar.get(GATE_COOKIE_NAME)?.value;
   const gateOk =
-    !rec.passwordHash || verifyGatePayload(code, gateCookie);
+    !rec.passwordHash || verifyGatePayload(code, gateCookie, rec.passwordHash);
 
   if (!gateOk) {
     return <LinkGateForm code={code} />;
   }
 
   const requestHeaders = await headers();
-  await recordClick(code, {
+  const metadata = {
     ip:
       requestHeaders.get("x-forwarded-for") ??
       requestHeaders.get("x-real-ip"),
     referer: requestHeaders.get("referer"),
     userAgent: requestHeaders.get("user-agent"),
-  });
+  };
+  try {
+    await enqueueClick(code, metadata);
+  } catch {
+    after(async () => {
+    try {
+      await recordClick(code, metadata);
+    } catch {
+      console.error("Failed to record link click", code);
+    }
+    });
+  }
   redirect(rec.url);
 }

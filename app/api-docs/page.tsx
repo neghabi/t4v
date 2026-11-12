@@ -24,13 +24,15 @@ const endpoints = [
     method: "GET",
     path: "/api/v1/links",
     title: "فهرست لینک‌ها",
-    description: "همهٔ لینک‌های متعلق به کلید و حساب احراز هویت‌شده را برمی‌گرداند.",
+    description:
+      "لینک‌های حساب را در صفحه‌های ۲۵تایی برمی‌گرداند. برای صفحهٔ بعد از ?page=2 استفاده کنید؛ پاسخ شامل page، total و totalPages است.",
   },
   {
     method: "POST",
     path: "/api/v1/links",
     title: "ساخت لینک",
-    description: "لینک کوتاه جدید می‌سازد و هزینهٔ عملیات را از اعتبار حساب کسر می‌کند.",
+    description:
+      "لینک کوتاه جدید می‌سازد و هزینهٔ عملیات را از اعتبار حساب کسر می‌کند.",
   },
   {
     method: "GET",
@@ -73,9 +75,23 @@ const updateExample = `curl -X PATCH https://t4v.ir/api/v1/links/AbC123x \\
 export default function ApiDocsPage() {
   return (
     <div className="mesh-bg flex min-h-[100dvh] flex-col">
-      <div className="pointer-events-none fixed inset-0 grid-overlay" aria-hidden />
+      <div
+        className="pointer-events-none fixed inset-0 grid-overlay"
+        aria-hidden
+      />
       <SiteHeader />
       <main className="relative flex-1">
+        <section className="site-container pt-8">
+          <Link className="button-secondary" href="/api/openapi">
+            دریافت سند OpenAPI
+          </Link>
+          <p className="notice mt-4">
+            برای تکرار امن ساخت لینک، هدر Idempotency-Key را با مقدار ثابت و
+            بدنهٔ یکسان بفرستید؛ اعتبار دوباره کسر نمی‌شود. کلید فقط‌خواندنی برای
+            گزارش‌ها و کلید مدیریت برای ساخت، ویرایش و حذف قابل انتخاب است.
+            فیلدهای title، tags و customCode هنگام ساخت پذیرفته می‌شوند.
+          </p>
+        </section>
         <section className="mx-auto max-w-7xl px-4 pb-14 pt-14 md:px-6 md:pb-20 md:pt-20">
           <div className="max-w-4xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-brand-500/25 bg-brand-500/10 px-4 py-1.5 text-xs font-bold text-brand-800 dark:text-brand-200">
@@ -87,8 +103,8 @@ export default function ApiDocsPage() {
             </h1>
             <p className="mt-6 max-w-3xl text-base leading-8 text-zinc-700 dark:text-zinc-300 md:text-lg">
               API نسخه ۱ برای استفادهٔ سمت سرور طراحی شده است و چرخهٔ کامل مدیریت
-              لینک را پوشش می‌دهد. همهٔ عملیات با مالکیت حساب، محدودیت نرخ و
-              کلید Bearer کنترل می‌شوند.
+              لینک را پوشش می‌دهد. همهٔ عملیات با مالکیت حساب، محدودیت نرخ و کلید
+              Bearer کنترل می‌شوند.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -128,10 +144,21 @@ export default function ApiDocsPage() {
                 text: "کلیدهای هر اتصال را جدا بسازید و در صورت نیاز فوراً باطل کنید.",
               },
             ].map(({ icon: Icon, title, text }) => (
-              <article key={title} className="premium-card card-lift rounded-3xl border p-6">
-                <Icon className="size-6 text-brand-700 dark:text-brand-300" strokeWidth={1.9} aria-hidden />
-                <h2 className="mt-4 font-bold text-zinc-950 dark:text-white">{title}</h2>
-                <p className="mt-2 text-sm leading-7 text-zinc-700 dark:text-zinc-300">{text}</p>
+              <article
+                key={title}
+                className="premium-card card-lift rounded-3xl border p-6"
+              >
+                <Icon
+                  className="size-6 text-brand-700 dark:text-brand-300"
+                  strokeWidth={1.9}
+                  aria-hidden
+                />
+                <h2 className="mt-4 font-bold text-zinc-950 dark:text-white">
+                  {title}
+                </h2>
+                <p className="mt-2 text-sm leading-7 text-zinc-700 dark:text-zinc-300">
+                  {text}
+                </p>
               </article>
             ))}
           </div>
@@ -146,7 +173,8 @@ export default function ApiDocsPage() {
               </h2>
               <p className="mt-4 leading-8 text-zinc-700 dark:text-zinc-300">
                 آدرس پایهٔ سرویس <code dir="ltr">https://t4v.ir</code> است.
-                پاسخ‌ها JSON هستند و صفحات خصوصی با سیاست no-store ارسال می‌شوند.
+                پاسخ‌ها JSON هستند و صفحات خصوصی با سیاست no-store ارسال
+                می‌شوند.
               </p>
             </div>
             <div className="space-y-3">
@@ -182,23 +210,35 @@ export default function ApiDocsPage() {
             <div className="grid gap-8 lg:grid-cols-2">
               <div>
                 <div className="flex items-center gap-3">
-                  <Terminal className="size-6 text-brand-700 dark:text-brand-300" aria-hidden />
+                  <Terminal
+                    className="size-6 text-brand-700 dark:text-brand-300"
+                    aria-hidden
+                  />
                   <h2 className="text-2xl font-black text-zinc-950 dark:text-white">
                     نمونه ساخت لینک
                   </h2>
                 </div>
-                <pre className="mt-5 overflow-x-auto rounded-3xl border border-white/10 bg-zinc-950 p-5 text-left font-mono text-xs leading-6 text-zinc-100 shadow-xl" dir="ltr">
+                <pre
+                  className="mt-5 overflow-x-auto rounded-3xl border border-white/10 bg-zinc-950 p-5 text-left font-mono text-xs leading-6 text-zinc-100 shadow-xl"
+                  dir="ltr"
+                >
                   <code>{createExample}</code>
                 </pre>
               </div>
               <div>
                 <div className="flex items-center gap-3">
-                  <Braces className="size-6 text-brand-700 dark:text-brand-300" aria-hidden />
+                  <Braces
+                    className="size-6 text-brand-700 dark:text-brand-300"
+                    aria-hidden
+                  />
                   <h2 className="text-2xl font-black text-zinc-950 dark:text-white">
                     نمونه ویرایش لینک
                   </h2>
                 </div>
-                <pre className="mt-5 overflow-x-auto rounded-3xl border border-white/10 bg-zinc-950 p-5 text-left font-mono text-xs leading-6 text-zinc-100 shadow-xl" dir="ltr">
+                <pre
+                  className="mt-5 overflow-x-auto rounded-3xl border border-white/10 bg-zinc-950 p-5 text-left font-mono text-xs leading-6 text-zinc-100 shadow-xl"
+                  dir="ltr"
+                >
                   <code>{updateExample}</code>
                 </pre>
               </div>
@@ -216,7 +256,11 @@ export default function ApiDocsPage() {
                   "برای هر سرویس یا محیط، یک کلید مستقل با نام مشخص بسازید.",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <Check className="mt-1 size-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                    <Check
+                      className="mt-1 size-4 shrink-0"
+                      strokeWidth={2.2}
+                      aria-hidden
+                    />
                     {item}
                   </li>
                 ))}

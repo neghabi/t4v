@@ -32,6 +32,14 @@ COPY prisma ./prisma
 
 CMD ["npx", "prisma", "migrate", "deploy"]
 
+FROM base AS worker
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY scripts/analytics-worker.mjs ./scripts/analytics-worker.mjs
+USER node
+CMD ["node", "scripts/analytics-worker.mjs"]
+
 FROM node:22-bookworm-slim AS runner
 
 ENV NODE_ENV=production

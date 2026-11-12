@@ -51,3 +51,6 @@ next-env.d.ts
 
 # generated deployment archives
 /releases/
+
+# local development runtime and screenshots
+/.local/

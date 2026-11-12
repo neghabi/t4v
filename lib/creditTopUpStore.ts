@@ -65,20 +65,23 @@ export async function createTopUpRequest(
   requestedCredits: number,
 ): Promise<CreditTopUpPublic> {
   validateAmount(requestedCredits);
-  const pendingCount = await prisma.creditTopUp.count({
-    where: { userId, status: "pending" },
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+    const pendingCount = await tx.creditTopUp.count({
+      where: { userId, status: "pending" },
+    });
+    if (pendingCount >= 3) {
+      throw new Error("حداکثر سه درخواست در انتظار بررسی مجاز است.");
+    }
+    const row = await tx.creditTopUp.create({
+      data: {
+        id: nanoid(16),
+        userId,
+        requestedCredits,
+      },
+    });
+    return mapTopUp(row);
   });
-  if (pendingCount >= 3) {
-    throw new Error("حداکثر سه درخواست در انتظار بررسی مجاز است.");
-  }
-  const row = await prisma.creditTopUp.create({
-    data: {
-      id: nanoid(16),
-      userId,
-      requestedCredits,
-    },
-  });
-  return mapTopUp(row);
 }
 
 export async function cancelTopUpRequest(

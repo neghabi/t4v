@@ -1,3 +1,4 @@
+import { parseLinkMetadata } from "@/lib/linkMetadata";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth/getSessionUser";
 import { parseSafeHttpUrl, UnsafeUrlError } from "@/lib/urlValidation";
@@ -10,6 +11,7 @@ import {
 import { getPublicBaseUrl } from "@/lib/publicBaseUrl";
 import { CREDIT_COST_SHORTEN } from "@/lib/credits";
 import { enforceRateLimit } from "@/lib/rateLimit";
+import { ApiError, apiErrorResponse } from "@/lib/apiResponse";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 const MAX_EXPIRY_DAYS = 365;
@@ -30,7 +32,10 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "بدنه درخواست نامعتبر است." }, { status: 400 });
+    return NextResponse.json(
+      { error: "بدنه درخواست نامعتبر است." },
+      { status: 400 },
+    );
   }
 
   if (typeof body !== "object" || body === null) {
@@ -40,7 +45,10 @@ export async function POST(request: NextRequest) {
   const b = body as Record<string, unknown>;
   const urlField = typeof b.url === "string" ? b.url : null;
   if (!urlField) {
-    return NextResponse.json({ error: "فیلد url الزامی است." }, { status: 400 });
+    return NextResponse.json(
+      { error: "فیلد url الزامی است." },
+      { status: 400 },
+    );
   }
 
   let expiresInMs: number | null = null;
@@ -86,7 +94,13 @@ export async function POST(request: NextRequest) {
   try {
     const result = await createShortUrlWithDebit(
       parsed.toString(),
-      { expiresInMs, password, codeLength },
+      {
+        expiresInMs,
+        password,
+        codeLength,
+        ...parseLinkMetadata(b),
+        idempotencyKey: request.headers.get("Idempotency-Key") ?? undefined,
+      },
       sessionUser.id,
       CREDIT_COST_SHORTEN,
       "کوتاه‌سازی لینک",
@@ -109,12 +123,15 @@ export async function POST(request: NextRequest) {
       shortUrl,
       original: parsed.toString(),
       expiresInDays:
-        typeof b.expiresInDays === "number" ? Math.floor(b.expiresInDays) : null,
+        typeof b.expiresInDays === "number"
+          ? Math.floor(b.expiresInDays)
+          : null,
       hasPassword: Boolean(password),
       codeLength: code.length,
       credits,
     });
   } catch (e) {
+    if (e instanceof ApiError) return apiErrorResponse(e);
     if (e instanceof Error && e.message.includes("رمز")) {
       return NextResponse.json({ error: e.message }, { status: 400 });
     }

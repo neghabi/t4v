@@ -1,6 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SiteHeader } from "@/components/SiteChrome";
+
+export const metadata = {
+  title: "ورود به حساب",
+  robots: { index: false, follow: false },
+};
 
 export default async function LoginPage({
   searchParams,
@@ -9,7 +15,9 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const nextHref =
-    typeof sp.next === "string" && sp.next.startsWith("/") && !sp.next.startsWith("//")
+    typeof sp.next === "string" &&
+    sp.next.startsWith("/") &&
+    !sp.next.startsWith("//")
       ? sp.next
       : "/dashboard";
 
@@ -18,6 +26,16 @@ export default async function LoginPage({
       <SiteHeader />
       <main className="flex flex-1 items-center justify-center px-4 py-16">
         <div className="premium-card w-full max-w-md rounded-3xl border border-zinc-200/80 bg-white/80 p-8 backdrop-blur-2xl dark:border-white/[0.09] dark:bg-white/[0.04]">
+          <div className="editorial-visual mb-7">
+            <Image
+              src="/images/connected-links.webp"
+              alt="حلقه‌های متصل؛ به فضای کاری خود برگردید"
+              width={1100}
+              height={619}
+              sizes="380px"
+              className="h-36 w-full object-cover"
+            />
+          </div>
           <h1 className="text-center text-2xl font-bold text-zinc-950 dark:text-white">
             ورود به حساب
           </h1>

@@ -11,7 +11,7 @@ function createClient(): PrismaClient {
     throw new Error("DATABASE_URL تنظیم نشده است.");
   }
 
-  const adapter = new PrismaPg({ connectionString });
+  const adapter = new PrismaPg({ connectionString, options: "-c timezone=UTC" });
   return new PrismaClient({ adapter });
 }
 

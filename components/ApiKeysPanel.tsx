@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Check,
-  Copy,
-  KeyRound,
-  Plus,
-  ShieldAlert,
-  Trash2,
-} from "lucide-react";
+import { Check, Copy, KeyRound, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ApiKeyPublic } from "@/lib/apiKeyStore";
 
@@ -28,6 +21,7 @@ export function ApiKeysPanel({
 }) {
   const [apiKeys, setApiKeys] = useState(initialApiKeys);
   const [name, setName] = useState("");
+  const [access, setAccess] = useState("full");
   const [secret, setSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +34,11 @@ export function ApiKeysPanel({
       const response = await fetch("/api/user/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          scopes:
+            access === "read" ? ["links:read"] : ["links:read", "links:write"],
+        }),
       });
       const data = (await response.json()) as {
         apiKey?: ApiKeyPublic;
@@ -84,6 +82,17 @@ export function ApiKeysPanel({
 
   return (
     <div className="mt-8 space-y-6">
+      <label className="field-label">
+        دسترسی کلید جدید
+        <select
+          className="field max-w-xs"
+          value={access}
+          onChange={(e) => setAccess(e.target.value)}
+        >
+          <option value="full">خواندن و مدیریت لینک‌ها</option>
+          <option value="read">فقط خواندن</option>
+        </select>
+      </label>
       <section className="premium-card rounded-3xl border p-5 md:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -222,8 +231,8 @@ export function ApiKeysPanel({
           راهنمای سریع API v1
         </h2>
         <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
-          کلید را در هدر Authorization ارسال کنید. استفاده از کلید در کد
-          سمت مرورگر توصیه نمی‌شود؛ آن را فقط در سرور نگه دارید.
+          کلید را در هدر Authorization ارسال کنید. استفاده از کلید در کد سمت
+          مرورگر توصیه نمی‌شود؛ آن را فقط در سرور نگه دارید.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {[

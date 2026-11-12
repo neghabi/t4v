@@ -160,11 +160,12 @@ export function CreditTopUpPanel({
 
         <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
           <div>
-            <label className="mb-1.5 block text-xs text-zinc-500">
+            <label htmlFor="top-up-amount" className="mb-1.5 block text-xs text-zinc-500">
               یا مقدار دلخواه
             </label>
             <input
               type="number"
+              id="top-up-amount"
               min={MIN_TOP_UP_CREDITS}
               max={MAX_TOP_UP_CREDITS}
               value={custom}

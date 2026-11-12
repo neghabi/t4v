@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
-  const token = await createSessionToken(rec.id);
+  const token = await createSessionToken(rec.id, request.headers.get("user-agent"));
   const res = NextResponse.json({ user: toPublic(rec) });
   setSessionCookie(res, token);
   return res;

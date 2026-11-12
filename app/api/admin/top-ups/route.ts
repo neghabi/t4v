@@ -3,7 +3,7 @@ import { isAdminRequest } from "@/lib/adminRequest";
 import { listTopUpsForAdmin } from "@/lib/creditTopUpStore";
 
 export async function GET(request: NextRequest) {
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { error: "دسترسی مدیریت لازم است." },
       { status: 401 },

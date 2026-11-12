@@ -9,7 +9,7 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function createSessionToken(userId: string): Promise<string> {
+export async function createSessionToken(userId: string, userAgent?: string | null): Promise<string> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
@@ -22,6 +22,7 @@ export async function createSessionToken(userId: string): Promise<string> {
         tokenHash: hashToken(token),
         userId,
         expiresAt,
+        userAgent: userAgent?.slice(0, 512) ?? null,
       },
     }),
   ]);

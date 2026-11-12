@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { getSessionUserFromRequest } from "@/lib/auth/getSessionUser";
 import { getRecord } from "@/lib/urlStore";
-import { getUserById, spendCredits } from "@/lib/userStore";
+import { spendCredits } from "@/lib/userStore";
 import { CREDIT_COST_QR_STANDALONE } from "@/lib/credits";
 import { enforceRateLimit } from "@/lib/rateLimit";
-
-const FREE_QR_WINDOW_MS = 120_000;
+import { getPublicBaseUrl } from "@/lib/publicBaseUrl";
 
 export async function POST(request: NextRequest) {
   const limited = await enforceRateLimit(request, "qr", 60, 60 * 1000);
@@ -66,12 +65,28 @@ export async function POST(request: NextRequest) {
     if (
       rec &&
       rec.userId === sessionUser.id &&
-      Date.now() - rec.createdAt <= FREE_QR_WINDOW_MS
+      parsed.toString() === new URL(`${getPublicBaseUrl(request)}/${shortCode}`).toString()
     ) {
       skipDebit = true;
     }
   }
 
+  let dataUrl: string;
+  try {
+    dataUrl = await QRCode.toDataURL(parsed.toString(), {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 960,
+      color: { dark: "#0f172a", light: "#ffffff" },
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "این آدرس برای ساخت QR بیش از حد طولانی است یا تصویر قابل تولید نیست." },
+      { status: 400 },
+    );
+  }
+
+  let credits = sessionUser.credits;
   if (!skipDebit) {
     const debit = await spendCredits(
       sessionUser.id,
@@ -87,24 +102,13 @@ export async function POST(request: NextRequest) {
         { status: 402 },
       );
     }
+    credits = debit.user.credits;
   }
 
-  try {
-    const dataUrl = await QRCode.toDataURL(parsed.toString(), {
-      errorCorrectionLevel: "M",
-      margin: 2,
-      width: 320,
-      color: { dark: "#0f172a", light: "#ffffff" },
-    });
-    const latest = await getUserById(sessionUser.id);
-    const credits = latest?.credits ?? sessionUser.credits;
-    return NextResponse.json({
-      dataUrl,
-      url: parsed.toString(),
-      credits,
-      freeQr: skipDebit,
-    });
-  } catch {
-    return NextResponse.json({ error: "ساخت QR ناموفق بود." }, { status: 500 });
-  }
+  return NextResponse.json({
+    dataUrl,
+    url: parsed.toString(),
+    credits,
+    freeQr: skipDebit,
+  });
 }

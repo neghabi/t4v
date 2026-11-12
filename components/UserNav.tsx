@@ -33,6 +33,12 @@ export function UserNav() {
     void refresh();
   }, [refresh, pathname]);
 
+  useEffect(() => {
+    const onUpdate = () => { void refresh(); };
+    window.addEventListener("t4v-user-updated", onUpdate);
+    return () => window.removeEventListener("t4v-user-updated", onUpdate);
+  }, [refresh]);
+
   if (data?.user) {
     return (
       <div className="flex items-center gap-1.5">
@@ -42,6 +48,7 @@ export function UserNav() {
         </span>
         <Link
           href="/dashboard"
+          aria-label="حساب من"
           className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm text-zinc-700 transition hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-200 dark:hover:bg-white/[0.06] dark:hover:text-white md:px-3"
         >
           <Gauge className="size-4" strokeWidth={1.9} aria-hidden />
@@ -73,6 +80,7 @@ export function UserNav() {
     <div className="flex items-center gap-1.5">
       <Link
         href="/login"
+        aria-label="ورود"
         className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-zinc-700 transition hover:bg-black/[0.04] hover:text-zinc-950 dark:text-zinc-200 dark:hover:bg-white/[0.06] dark:hover:text-white md:px-3"
       >
         <LogIn className="size-4" strokeWidth={1.9} aria-hidden />
@@ -80,6 +88,7 @@ export function UserNav() {
       </Link>
       <Link
         href="/register"
+        aria-label="ثبت‌نام"
         className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-l from-brand-600 to-accent-500 px-3 text-sm font-semibold text-white shadow-sm shadow-brand-500/20 transition hover:brightness-110"
       >
         <UserPlus className="size-4" strokeWidth={2} aria-hidden />

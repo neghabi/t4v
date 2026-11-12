@@ -14,7 +14,7 @@ export async function PATCH(
 ) {
   const limited = await enforceRateLimit(request, "admin-user-update", 60, 60_000);
   if (limited) return limited;
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { error: "دسترسی مدیریت لازم است." },
       { status: 401, headers: noStore },
@@ -67,7 +67,7 @@ export async function DELETE(
 ) {
   const limited = await enforceRateLimit(request, "admin-user-delete", 30, 60_000);
   if (limited) return limited;
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { error: "دسترسی مدیریت لازم است." },
       { status: 401, headers: noStore },

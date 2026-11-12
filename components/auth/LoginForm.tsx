@@ -37,11 +37,12 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
   return (
     <form className="mt-8 space-y-4" onSubmit={onSubmit}>
       <div>
-        <label className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label htmlFor="login-email" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
           ایمیل
         </label>
         <input
           type="email"
+          id="login-email"
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -51,11 +52,12 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label htmlFor="login-password" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
           رمز عبور
         </label>
         <input
           type="password"
+          id="login-password"
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -76,6 +78,7 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
       >
         {loading ? "لطفاً صبر کنید…" : "ورود"}
       </button>
+      <Link href="/forgot-password" className="block text-center text-sm text-brand-700 dark:text-brand-300">رمز عبور را فراموش کرده‌ام</Link>
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         حساب ندارید؟{" "}
         <Link href="/register" className="font-medium text-brand-700 hover:underline dark:text-brand-300">

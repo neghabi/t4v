@@ -1,463 +1,443 @@
 "use client";
-
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
+  ArrowLeft,
   Check,
   Copy,
   Download,
   Link2,
-  LoaderCircle,
+  Loader2,
+  Plus,
   QrCode,
-  Settings2,
-  ShieldCheck,
-  WalletCards,
+  SlidersHorizontal,
 } from "lucide-react";
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import {
-  CREDIT_COST_QR_STANDALONE,
-  CREDIT_COST_SHORTEN,
-} from "@/lib/credits";
+import { CREDIT_COST_SHORTEN, CREDIT_COST_QR_STANDALONE } from "@/lib/credits";
 
-type MeUser = { id: string; email: string; credits: number };
-
-export function LinkStudio() {
-  const [me, setMe] = useState<MeUser | null | undefined>(undefined);
+type Me = { id: string; credits: number; email: string };
+export function LinkStudio({
+  compact = false,
+  onCreated,
+}: {
+  compact?: boolean;
+  onCreated?: () => void;
+}) {
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [url, setUrl] = useState("");
-  const [expiresInDays, setExpiresInDays] = useState("");
-  const [linkPassword, setLinkPassword] = useState("");
-  const [codeLength, setCodeLength] = useState("7");
-  const [loading, setLoading] = useState<"shorten" | "qr" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [shortUrl, setShortUrl] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [meta, setMeta] = useState<{
-    hasPassword: boolean;
-    expiresInDays: number | null;
-    codeLength: number;
+  const [title, setTitle] = useState("");
+  const [customCode, setCustomCode] = useState("");
+  const [tags, setTags] = useState("");
+  const [password, setPassword] = useState("");
+  const [days, setDays] = useState("");
+  const [utm, setUtm] = useState({ source: "", medium: "", campaign: "" });
+  const [busy, setBusy] = useState<"link" | "qr" | null>(null);
+  const [error, setError] = useState("");
+  const [qrError, setQrError] = useState("");
+  const [result, setResult] = useState<{
+    shortUrl: string;
+    code: string;
   } | null>(null);
-
-  const refreshMe = useCallback(async () => {
+  const [qr, setQr] = useState("");
+  const [copied, setCopied] = useState(false);
+  const requestRef = useRef<{ signature: string; key: string } | null>(null);
+  async function refreshMe() {
     try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
-      const data = (await res.json()) as { user: MeUser | null };
+      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      const data = await response.json();
       setMe(data.user ?? null);
     } catch {
       setMe(null);
     }
-  }, []);
-
+  }
   useEffect(() => {
     void refreshMe();
-  }, [refreshMe]);
-
-  const fetchQr = useCallback(async (target: string, shortCode?: string) => {
-    const res = await fetch("/api/qr", {
+  }, []);
+  async function fetchQr(target: string, shortCode?: string) {
+    const response = await fetch("/api/qr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        shortCode ? { url: target, shortCode } : { url: target },
-      ),
+      body: JSON.stringify({ url: target, shortCode }),
     });
-    const data = (await res.json()) as {
-      dataUrl?: string;
-      error?: string;
-      credits?: number;
-    };
-    if (!res.ok) {
-      throw new Error(data.error ?? "خطا در ساخت QR");
-    }
-    if (typeof data.credits === "number") {
-      setMe((m) => (m ? { ...m, credits: data.credits! } : m));
-    }
-    if (data.dataUrl) setQrDataUrl(data.dataUrl);
-  }, []);
-
-  function buildShortenBody() {
-    const body: Record<string, unknown> = {
-      url: url.trim(),
-      codeLength: Number(codeLength),
-    };
-    const days = expiresInDays.trim();
-    if (days !== "") {
-      const n = Number(days);
-      if (Number.isFinite(n)) body.expiresInDays = Math.floor(n);
-    }
-    const lp = linkPassword.trim();
-    if (lp) body.password = lp;
-    return body;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? "ساخت QR انجام نشد.");
+    setQr(data.dataUrl);
+    if (typeof data.credits === "number")
+      setMe((current) =>
+        current ? { ...current, credits: data.credits } : current,
+      );
   }
-
-  async function handleShorten(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  function targetUrl() {
+    const target = new URL(
+      /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`,
+    );
+    for (const [key, value] of Object.entries(utm))
+      if (value.trim()) target.searchParams.set(`utm_${key}`, value.trim());
+    return target.toString();
+  }
+  async function shorten(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    setQrError("");
+    setResult(null);
+    setQr("");
     setCopied(false);
-    setMeta(null);
-    setLoading("shorten");
+    setBusy("link");
     try {
-      const res = await fetch("/api/shorten", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildShortenBody()),
-      });
-      const data = (await res.json()) as {
-        shortUrl?: string;
-        code?: string;
-        error?: string;
-        hasPassword?: boolean;
-        expiresInDays?: number | null;
-        codeLength?: number;
-        credits?: number;
+      const body = {
+        url: targetUrl(),
+        title,
+        customCode: customCode || undefined,
+        tags: tags
+          .split(/[,،]/)
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        password: password || undefined,
+        expiresInDays: days ? Number(days) : undefined,
       };
-      if (res.status === 401) {
-        throw new Error(
-          "برای کوتاه‌سازی وارد حساب شوید یا ثبت‌نام کنید.",
-        );
-      }
-      if (res.status === 402) {
-        throw new Error(
-          data.error ??
-            `اعتبار کافی نیست. هر کوتاه‌سازی ${CREDIT_COST_SHORTEN} اعتبار است.`,
-        );
-      }
-      if (!res.ok) {
-        throw new Error(data.error ?? "کوتاه‌سازی انجام نشد.");
-      }
-      if (!data.shortUrl || !data.code) throw new Error("پاسخ نامعتبر از سرور.");
-      setShortUrl(data.shortUrl);
-      setMeta({
-        hasPassword: Boolean(data.hasPassword),
-        expiresInDays:
-          typeof data.expiresInDays === "number" ? data.expiresInDays : null,
-        codeLength:
-          typeof data.codeLength === "number"
-            ? data.codeLength
-            : Number(codeLength),
+      const signature = JSON.stringify(body);
+      if (requestRef.current?.signature !== signature)
+        requestRef.current = { signature, key: crypto.randomUUID() };
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": requestRef.current!.key,
+        },
+        body: JSON.stringify(body),
       });
-      await fetchQr(data.shortUrl, data.code);
-      await refreshMe();
-    } catch (err) {
-      setShortUrl(null);
-      setQrDataUrl(null);
-      setMeta(null);
-      setError(err instanceof Error ? err.message : "خطای ناشناخته");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "ساخت لینک انجام نشد.");
+      setResult({ shortUrl: data.shortUrl, code: data.code });
+      if (typeof data.credits === "number")
+        setMe((current) =>
+          current ? { ...current, credits: data.credits } : current,
+        );
+      try {
+        await fetchQr(data.shortUrl, data.code);
+      } catch (failure) {
+        setQrError(
+          failure instanceof Error ? failure.message : "ساخت QR انجام نشد.",
+        );
+      }
+      window.dispatchEvent(new Event("t4v-user-updated"));
+      onCreated?.();
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : "درخواست انجام نشد.",
+      );
     } finally {
-      setLoading(null);
+      setBusy(null);
     }
   }
-
-  async function handleQrOnly(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  async function qrOnly() {
+    setError("");
+    setQrError("");
+    setResult(null);
+    setQr("");
     setCopied(false);
-    setMeta(null);
-    setLoading("qr");
+    setBusy("qr");
     try {
-      await fetchQr(url.trim());
-      await refreshMe();
-    } catch (err) {
-      setQrDataUrl(null);
-      setError(err instanceof Error ? err.message : "خطای ناشناخته");
+      await fetchQr(targetUrl());
+      window.dispatchEvent(new Event("t4v-user-updated"));
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : "ساخت QR انجام نشد.",
+      );
     } finally {
-      setLoading(null);
+      setBusy(null);
     }
   }
-
-  async function copyShort() {
-    if (!shortUrl) return;
+  async function copy() {
+    if (!result) return;
     try {
-      await navigator.clipboard.writeText(shortUrl);
+      await navigator.clipboard.writeText(result.shortUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("مرورگر اجازه کپی در حافظه را نداد.");
+      setError("مرورگر اجازهٔ کپی نداد. لینک را انتخاب و کپی کنید.");
     }
   }
-
-  const loggedIn = me !== undefined && me !== null;
-  const creditsLabel =
-    me && me.id ? `${me.credits} اعتبار` : me === null ? null : "…";
-
+  const disabled = !me || busy !== null;
   return (
-    <div
-      id="tool"
-      className="premium-card relative mx-auto max-w-3xl scroll-mt-28 overflow-hidden rounded-3xl border border-zinc-200/80 bg-white/75 p-6 backdrop-blur-2xl dark:border-white/[0.09] dark:bg-white/[0.035] md:p-10"
-    >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-500/[0.12] via-transparent to-accent-400/[0.08] dark:from-brand-500/[0.11] dark:to-accent-400/[0.05]" />
-      <div className="relative">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-400/20 dark:bg-brand-500/10 dark:text-brand-200">
-              <Link2 className="size-[18px]" strokeWidth={2} aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white md:text-2xl">
-                استودیو لینک و QR
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300 md:text-base">
-                پس از ورود، هر کوتاه‌سازی و ساخت QR مستقل از اعتبار شما کسر می‌شود.
-                جزئیات در{" "}
-                <Link
-                  href="/dashboard"
-                  className="font-medium text-brand-700 hover:underline dark:text-brand-300"
-                >
-                  داشبورد
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-          {creditsLabel ? (
-            <div className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-brand-500/25 bg-brand-500/10 px-3 py-2 text-xs font-bold text-brand-900 dark:text-brand-100" dir="ltr">
-              <WalletCards className="size-4" strokeWidth={1.9} aria-hidden />
-              {creditsLabel}
-            </div>
-          ) : null}
+    <div className={`studio-panel ${compact ? "compact" : ""}`}>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          {!compact && (
+            <h2 className="text-lg font-semibold">یک لینک تازه بسازید</h2>
+          )}
+          <p className="mt-2 text-xs leading-6 text-muted">
+            از یک آدرس بلند، به یک ارتباط ساده.
+          </p>
         </div>
-
-        {me === null ? (
-          <div className="mt-6 rounded-2xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100">
-            برای استفاده از ابزار و کسر اعتبار،{" "}
-            <Link href="/login" className="font-semibold underline">
-              وارد شوید
-            </Link>{" "}
-            یا{" "}
-            <Link href="/register" className="font-semibold underline">
-              ثبت‌نام
-            </Link>{" "}
-            کنید.
-          </div>
-        ) : null}
-
-        <form className="mt-8 flex flex-col gap-4" onSubmit={handleShorten}>
-          <label className="sr-only" htmlFor="url-input">
+        <span className="pill shrink-0">
+          {me
+            ? `${me.credits.toLocaleString("fa-IR")} اعتبار`
+            : me === undefined
+              ? "در حال بررسی…"
+              : "حساب رایگان"}
+        </span>
+      </div>
+      {me === null && (
+        <p className="notice mb-5">
+          برای ذخیره و مدیریت لینک‌ها{" "}
+          <Link
+            className="font-medium text-brand-600 underline underline-offset-4"
+            href="/login?next=/dashboard?create=1"
+          >
+            وارد شوید
+          </Link>{" "}
+          یا{" "}
+          <Link
+            className="font-medium text-brand-600 underline underline-offset-4"
+            href="/register"
+          >
+            حساب بسازید
+          </Link>
+          .
+        </p>
+      )}
+      <form onSubmit={shorten} className="space-y-5">
+        <div>
+          <label
+            className="field-label"
+            htmlFor={compact ? "new-link-url" : "url-input"}
+          >
             آدرس وب
           </label>
           <input
-            id="url-input"
-            type="url"
-            inputMode="url"
-            placeholder="https://example.com/path"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="w-full rounded-2xl border border-zinc-200 bg-white/90 px-4 py-3.5 text-base text-zinc-950 outline-none ring-brand-500/25 transition placeholder:text-zinc-400 focus:border-brand-500/50 focus:ring-2 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-brand-400/50"
+            id={compact ? "new-link-url" : "url-input"}
+            className="field font-mono"
             dir="ltr"
+            inputMode="url"
+            type="text"
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder="https://example.com/your-next-idea"
+            disabled={disabled}
+            required
             autoComplete="url"
-            disabled={!loggedIn}
+            maxLength={16384}
           />
-
-          <details className="rounded-2xl border border-zinc-200 bg-zinc-50/70 px-4 py-3 open:border-brand-500/30 dark:border-white/[0.08] dark:bg-black/20 dark:open:border-brand-500/30">
-            <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              <Settings2 className="size-4 text-brand-600 dark:text-brand-300" strokeWidth={1.9} aria-hidden />
-              تنظیمات پیشرفته (طول شناسه، انقضا و رمز)
-            </summary>
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              <div>
-                <label
-                  htmlFor="code-length"
-                  className="mb-1.5 block text-xs text-zinc-500 dark:text-zinc-400"
-                >
-                  تعداد کاراکتر بعد از دامنه
-                </label>
-                <select
-                  id="code-length"
-                  value={codeLength}
-                  onChange={(e) => setCodeLength(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100"
-                  dir="rtl"
-                  disabled={!loggedIn}
-                >
-                  <option value="5">۵ کاراکتر — کوتاه</option>
-                  <option value="6">۶ کاراکتر</option>
-                  <option value="7">۷ کاراکتر — پیشنهادی</option>
-                  <option value="8">۸ کاراکتر</option>
-                  <option value="9">۹ کاراکتر</option>
-                  <option value="10">۱۰ کاراکتر</option>
-                  <option value="12">۱۲ کاراکتر — امن‌تر</option>
-                  <option value="16">۱۶ کاراکتر — حداکثر</option>
-                </select>
-                <p className="mt-1.5 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
-                  طول بیشتر، فضای شناسه و مقاومت در برابر حدس را افزایش می‌دهد.
-                </p>
-              </div>
-              <div>
-                <label
-                  htmlFor="exp-days"
-                  className="mb-1.5 block text-xs text-zinc-500 dark:text-zinc-400"
-                >
-                  اعتبار (روز، ۱ تا ۳۶۵، خالی = بدون انقضا)
-                </label>
-                <input
-                  id="exp-days"
-                  type="number"
-                  min={1}
-                  max={365}
-                  inputMode="numeric"
-                  placeholder="مثلاً ۷"
-                  value={expiresInDays}
-                  onChange={(e) => setExpiresInDays(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100"
-                  dir="ltr"
-                  disabled={!loggedIn}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="link-pw"
-                  className="mb-1.5 block text-xs text-zinc-500 dark:text-zinc-400"
-                >
-                  رمز لینک (اختیاری، حداقل ۴ نویسه)
-                </label>
-                <input
-                  id="link-pw"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="••••"
-                  value={linkPassword}
-                  onChange={(e) => setLinkPassword(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100"
-                  dir="ltr"
-                  disabled={!loggedIn}
-                />
-              </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="field-label" htmlFor="link-title">
+              عنوان <span className="font-normal text-muted">(اختیاری)</span>
+            </label>
+            <input
+              id="link-title"
+              className="field"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="مثلاً کمپین تابستان"
+              disabled={disabled}
+              maxLength={120}
+            />
+          </div>
+          <div>
+            <label className="field-label" htmlFor="link-slug">
+              شناسهٔ دلخواه{" "}
+              <span className="font-normal text-muted">(اختیاری)</span>
+            </label>
+            <input
+              id="link-slug"
+              className="field font-mono"
+              dir="ltr"
+              value={customCode}
+              onChange={(event) => setCustomCode(event.target.value)}
+              placeholder="summer-sale"
+              disabled={disabled}
+              pattern="[a-zA-Z0-9_-]{3,32}"
+              maxLength={32}
+            />
+          </div>
+        </div>
+        <details className="rounded-lg border border-[var(--line)] px-4 py-3">
+          <summary className="flex list-none items-center gap-2 text-xs text-muted">
+            <SlidersHorizontal className="size-3.5" /> تنظیمات بیشتر{" "}
+            <Plus className="mr-auto size-3.5" />
+          </summary>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="field-label" htmlFor="link-days">
+                انقضا (روز)
+              </label>
+              <input
+                id="link-days"
+                className="field"
+                type="number"
+                min={1}
+                max={365}
+                value={days}
+                onChange={(event) => setDays(event.target.value)}
+                placeholder="بدون انقضا"
+                disabled={disabled}
+              />
             </div>
-          </details>
-
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            هزینه تقریبی: کوتاه‌سازی {CREDIT_COST_SHORTEN} اعتبار؛ QR مستقل{" "}
-            {CREDIT_COST_QR_STANDALONE} اعتبار (QR بلافاصله پس از همان کوتاه‌سازی
-            رایگان است).
+            <div>
+              <label className="field-label" htmlFor="link-password">
+                رمز لینک
+              </label>
+              <input
+                id="link-password"
+                className="field"
+                type="password"
+                minLength={4}
+                maxLength={200}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="بدون رمز"
+                autoComplete="new-password"
+                disabled={disabled}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="link-tags">
+                برچسب‌ها
+              </label>
+              <input
+                id="link-tags"
+                className="field"
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                placeholder="فروش، شبکه اجتماعی، کمپین"
+                maxLength={247}
+                disabled={disabled}
+              />
+              <p className="mt-2 text-[10px] text-muted">
+                با ویرگول جدا کنید؛ حداکثر ۸ برچسب.
+              </p>
+            </div>
+            <p className="mt-2 text-xs font-medium sm:col-span-2">
+              پارامترهای کمپین (UTM)
+            </p>
+            {(
+              [
+                ["source", "منبع", "instagram"],
+                ["medium", "رسانه", "social"],
+                ["campaign", "نام کمپین", "summer-2026"],
+              ] as const
+            ).map(([key, label, placeholder]) => (
+              <div key={key}>
+                <label htmlFor={`utm-${key}`} className="field-label">
+                  {label}
+                </label>
+                <input
+                  id={`utm-${key}`}
+                  className="field font-mono"
+                  dir="ltr"
+                  value={utm[key]}
+                  onChange={(event) =>
+                    setUtm((current) => ({
+                      ...current,
+                      [key]: event.target.value,
+                    }))
+                  }
+                  placeholder={placeholder}
+                  maxLength={200}
+                  disabled={disabled}
+                />
+              </div>
+            ))}
+          </div>
+        </details>
+        {error && (
+          <p className="notice notice-error" role="alert">
+            {error}
           </p>
-
-          {error ? (
-            <p
-              className="rounded-xl border border-rose-300/50 bg-rose-500/10 px-4 py-2 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
-              role="alert"
-            >
-              {error}
-            </p>
-          ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        )}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="submit"
+            className="button-primary flex-1"
+            disabled={disabled || !url.trim()}
+          >
+            {busy === "link" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Link2 className="size-4" />
+            )}
+            {busy === "link" ? "در حال ساخت…" : "کوتاه کردن لینک"}
+            <ArrowLeft className="mr-auto size-4" />
+          </button>
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={disabled || !url.trim()}
+            onClick={() => void qrOnly()}
+          >
+            {busy === "qr" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <QrCode className="size-4" />
+            )}{" "}
+            فقط QR برای همین آدرس
+          </button>
+        </div>
+        <p className="text-[10px] leading-6 text-muted">
+          لینک کوتاه {CREDIT_COST_SHORTEN.toLocaleString("fa-IR")} اعتبار · QR
+          مستقل {CREDIT_COST_QR_STANDALONE.toLocaleString("fa-IR")} اعتبار · QR
+          لینک‌های شما رایگان
+        </p>
+      </form>
+      {result && (
+        <div className="mt-6 border-t border-[var(--line)] pt-6">
+          <p className="mb-3 flex items-center gap-2 text-xs font-medium">
+            <Check className="size-4 text-emerald-600" /> لینک شما آماده است
+          </p>
+          <div
+            className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--canvas)] p-2"
+            dir="ltr"
+          >
+            <code className="min-w-0 flex-1 select-all overflow-hidden text-ellipsis px-2 text-xs text-brand-600">
+              {result.shortUrl}
+            </code>
             <button
-              type="submit"
-              disabled={loading !== null || !url.trim() || !loggedIn}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-brand-600 to-accent-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="icon-button"
+              onClick={() => void copy()}
+              aria-label="کپی در حافظه"
             >
-              {loading === "shorten" ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner />
-                  در حال کوتاه‌سازی…
-                </span>
+              {copied ? (
+                <Check className="size-4" />
               ) : (
-                <>
-                  <Link2 className="size-4" strokeWidth={2} aria-hidden />
-                  کوتاه کردن لینک
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={handleQrOnly}
-              disabled={loading !== null || !url.trim() || !loggedIn}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white/85 px-6 py-3.5 text-sm font-semibold text-zinc-800 transition hover:-translate-y-0.5 hover:border-brand-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:hover:border-brand-400/40 dark:hover:bg-white/10"
-            >
-              {loading === "qr" ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner />
-                  ساخت QR…
-                </span>
-              ) : (
-                <>
-                  <QrCode className="size-4" strokeWidth={1.9} aria-hidden />
-                  فقط QR برای همین آدرس
-                </>
+                <Copy className="size-4" />
               )}
             </button>
           </div>
-        </form>
-
-        {shortUrl ? (
-          <div className="mt-10 space-y-4 rounded-2xl border border-emerald-300/50 bg-emerald-500/10 p-5 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-            <p className="flex items-center gap-2 text-sm font-medium text-emerald-900 dark:text-emerald-200">
-              <ShieldCheck className="size-4" strokeWidth={2} aria-hidden />
-              لینک کوتاه شما
-            </p>
-            {meta ? (
-              <ul className="flex flex-wrap gap-2 text-xs text-emerald-900/80 dark:text-emerald-200/80">
-                {meta.hasPassword ? (
-                  <li className="rounded-lg bg-white/60 px-2 py-1 dark:bg-white/5 dark:text-emerald-200/90">
-                    با رمز محافظت‌شده
-                  </li>
-                ) : null}
-                {meta.expiresInDays != null ? (
-                  <li className="rounded-lg bg-white/60 px-2 py-1 dark:bg-white/5">
-                    انقضا: {meta.expiresInDays} روز
-                  </li>
-                ) : null}
-                <li className="rounded-lg bg-white/60 px-2 py-1 dark:bg-white/5">
-                  شناسه: {meta.codeLength} کاراکتر
-                </li>
-              </ul>
-            ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <code
-                className="block flex-1 truncate rounded-xl bg-white px-4 py-3 text-sm text-brand-800 dark:bg-black/35 dark:text-brand-200"
-                dir="ltr"
-              >
-                {shortUrl}
-              </code>
-              <button
-                type="button"
-                onClick={copyShort}
-                className="shrink-0 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-800 hover:border-brand-300 hover:bg-brand-50/50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white dark:hover:border-brand-400/40 dark:hover:bg-white/10"
-              >
-                {copied ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Check className="size-4 text-emerald-600 dark:text-emerald-300" strokeWidth={2.2} aria-hidden />
-                    کپی شد
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-2">
-                    <Copy className="size-4" strokeWidth={1.9} aria-hidden />
-                    کپی در حافظه
-                  </span>
-                )}
-              </button>
-            </div>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              QR زیر به همین لینک کوتاشده اشاره می‌کند. اگر رمز گذاشته‌اید، پس از
-              اسکن ابتدا صفحهٔ ورود رمز نمایش داده می‌شود.
-            </p>
-          </div>
-        ) : null}
-
-        {qrDataUrl ? (
-          <div className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-6 dark:border-white/[0.08] dark:bg-black/20">
+        </div>
+      )}
+      {qrError && (
+        <p role="alert" className="notice mt-4">
+          لینک کوتاه با موفقیت ساخته شد. {qrError}
+        </p>
+      )}
+      {qr && (
+        <div className="mt-5 flex items-center justify-between gap-5 rounded-lg border border-[var(--line)] p-4">
+          <div className="flex items-center gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={qrDataUrl}
+              src={qr}
               alt="کد QR"
-              width={280}
-              height={280}
-              className="rounded-xl bg-white p-3 shadow-xl"
+              width={88}
+              height={88}
+              className="rounded-md bg-white p-1"
             />
-            <a
-              href={qrDataUrl}
-              download="qrcode.png"
-              className="inline-flex items-center gap-2 text-sm font-medium text-brand-700 underline-offset-4 hover:underline dark:text-brand-300"
-            >
-              <Download className="size-4" strokeWidth={1.9} aria-hidden />
-              دانلود تصویر PNG
-            </a>
+            <div>
+              <p className="text-xs font-medium">QR آمادهٔ انتشار</p>
+              <p className="mt-2 text-[10px] text-muted">
+                PNG · وضوح ۹۶۰ پیکسل
+              </p>
+            </div>
           </div>
-        ) : null}
-      </div>
+          <a
+            href={qr}
+            download="t4v-qr.png"
+            className="icon-button"
+            aria-label="دانلود تصویر PNG"
+          >
+            <Download className="size-4" />
+          </a>
+        </div>
+      )}
     </div>
-  );
-}
-
-function Spinner() {
-  return (
-    <LoaderCircle className="size-4 animate-spin" strokeWidth={2} aria-hidden />
   );
 }

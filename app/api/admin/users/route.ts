@@ -9,7 +9,7 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 const noStore = { "Cache-Control": "private, no-store, max-age=0" };
 
 export async function GET(request: NextRequest) {
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { error: "دسترسی مدیریت لازم است." },
       { status: 401, headers: noStore },
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const limited = await enforceRateLimit(request, "admin-user-create", 30, 60_000);
   if (limited) return limited;
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { error: "دسترسی مدیریت لازم است." },
       { status: 401, headers: noStore },

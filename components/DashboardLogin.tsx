@@ -6,6 +6,7 @@ import { useState } from "react";
 export function DashboardLogin() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -17,7 +18,7 @@ export function DashboardLogin() {
       const res = await fetch("/api/dashboard/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok) {
@@ -37,11 +38,27 @@ export function DashboardLogin() {
         ورود مدیریت سراسری
       </h1>
       <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-        متغیر محیطی <span dir="ltr">DASHBOARD_SECRET</span> تنظیم شده است. رمز
-        ادمین را وارد کنید.
+        برای مدیریت کاربران، لینک‌ها و اعتبارها با حساب مدیر وارد شوید.
       </p>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <label className="field-label" htmlFor="admin-username">
+          نام کاربری
+        </label>
         <input
+          id="admin-username"
+          className="field"
+          dir="ltr"
+          autoComplete="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          maxLength={64}
+        />
+        <label className="field-label" htmlFor="admin-password">
+          رمز عبور
+        </label>
+        <input
+          id="admin-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -49,6 +66,8 @@ export function DashboardLogin() {
           placeholder="رمز داشبورد"
           dir="ltr"
           autoComplete="current-password"
+          required
+          maxLength={128}
         />
         {error ? (
           <p className="text-sm text-rose-600 dark:text-rose-300" role="alert">
@@ -57,7 +76,7 @@ export function DashboardLogin() {
         ) : null}
         <button
           type="submit"
-          disabled={loading || !password}
+          disabled={loading || !password || !username}
           className="w-full rounded-2xl bg-gradient-to-l from-brand-600 to-accent-500 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition hover:brightness-110 disabled:opacity-40"
         >
           {loading ? "…" : "ورود"}

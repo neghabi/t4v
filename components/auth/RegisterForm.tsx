@@ -37,11 +37,12 @@ export function RegisterForm() {
   return (
     <form className="mt-8 space-y-4" onSubmit={onSubmit}>
       <div>
-        <label className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label htmlFor="register-email" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
           ایمیل
         </label>
         <input
           type="email"
+          id="register-email"
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -51,17 +52,19 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label htmlFor="register-password" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
           رمز عبور (حداقل ۸ نویسه)
         </label>
         <input
           type="password"
+          id="register-password"
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-950 outline-none focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/30 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100"
           dir="ltr"
           minLength={8}
+          maxLength={128}
           required
         />
       </div>

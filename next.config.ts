@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: { root: dirname(fileURLToPath(import.meta.url)) },
+  // Avoid restoring stale development tasks after a build or a server restart.
+  experimental: { turbopackFileSystemCacheForDev: false },
   // Allow dev asset/HMR requests when app is opened via 127.0.0.1
   allowedDevOrigins: ["127.0.0.1"],
   async headers() {

@@ -10,6 +10,24 @@ export function parseLinkUpdateInput(body: unknown): UpdateShortLinkInput {
 
   const value = body as Record<string, unknown>;
   const input: UpdateShortLinkInput = {};
+  if ("title" in value) {
+    if (typeof value.title !== "string" || value.title.trim().length > 120)
+      throw new Error("عنوان باید حداکثر ۱۲۰ نویسه باشد.");
+    input.title = value.title.trim();
+  }
+  if ("tags" in value) {
+    if (
+      !Array.isArray(value.tags) ||
+      value.tags.length > 8 ||
+      value.tags.some(
+        (tag) => typeof tag !== "string" || tag.trim().length > 30,
+      )
+    )
+      throw new Error("حداکثر ۸ برچسبِ ۳۰ نویسه‌ای مجاز است.");
+    input.tags = [
+      ...new Set(value.tags.map((tag: string) => tag.trim()).filter(Boolean)),
+    ];
+  }
 
   if ("url" in value) {
     if (typeof value.url !== "string" || !value.url.trim()) {
@@ -34,7 +52,9 @@ export function parseLinkUpdateInput(body: unknown): UpdateShortLinkInput {
         timestamp <= Date.now() ||
         timestamp > Date.now() + MAX_FUTURE_MS
       ) {
-        throw new Error("انقضا باید زمانی در آینده و حداکثر تا ۱۰ سال بعد باشد.");
+        throw new Error(
+          "انقضا باید زمانی در آینده و حداکثر تا ۱۰ سال بعد باشد.",
+        );
       }
       input.expiresAt = timestamp;
     } else {
@@ -55,7 +75,9 @@ export function parseLinkUpdateInput(body: unknown): UpdateShortLinkInput {
   if (
     input.url === undefined &&
     input.expiresAt === undefined &&
-    input.password === undefined
+    input.password === undefined &&
+    input.title === undefined &&
+    input.tags === undefined
   ) {
     throw new Error("حداقل یک مورد برای ویرایش ارسال کنید.");
   }

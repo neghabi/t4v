@@ -11,7 +11,7 @@ export async function PATCH(
 ) {
   const limited = await enforceRateLimit(request, "top-up-review", 60, 60_000);
   if (limited) return limited;
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { error: "دسترسی مدیریت لازم است." },
       { status: 401, headers: noStore },

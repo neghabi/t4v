@@ -8,6 +8,7 @@ const API_KEY_PREFIX = "t4v_";
 const MAX_KEYS_PER_USER = 10;
 
 export type ApiKeyPublic = {
+  scopes: string[];
   id: string;
   name: string;
   prefix: string;
@@ -20,6 +21,7 @@ function hashApiKey(value: string): string {
 }
 
 function mapApiKey(row: {
+  scopes: string[];
   id: string;
   name: string;
   keyPrefix: string;
@@ -27,6 +29,7 @@ function mapApiKey(row: {
   lastUsedAt: Date | null;
 }): ApiKeyPublic {
   return {
+    scopes: row.scopes,
     id: row.id,
     name: row.name,
     prefix: row.keyPrefix,
@@ -40,6 +43,7 @@ export async function listApiKeys(userId: string): Promise<ApiKeyPublic[]> {
     where: { userId },
     orderBy: { createdAt: "desc" },
     select: {
+      scopes: true,
       id: true,
       name: true,
       keyPrefix: true,
@@ -53,37 +57,51 @@ export async function listApiKeys(userId: string): Promise<ApiKeyPublic[]> {
 export async function createApiKey(
   userId: string,
   nameInput: string,
+  scopesInput: unknown = ["links:read", "links:write"],
 ): Promise<{ apiKey: ApiKeyPublic; secret: string }> {
   const name = nameInput.trim();
+  if (
+    !Array.isArray(scopesInput) ||
+    scopesInput.length < 1 ||
+    scopesInput.length > 2 ||
+    !scopesInput.every((s) => s === "links:read" || s === "links:write")
+  )
+    throw new Error("سطح دسترسی معتبر نیست.");
+  const scopes = [...new Set(scopesInput as string[])];
   if (name.length < 2 || name.length > 80) {
     throw new Error("نام کلید باید بین ۲ تا ۸۰ نویسه باشد.");
   }
 
-  const count = await prisma.apiKey.count({ where: { userId } });
-  if (count >= MAX_KEYS_PER_USER) {
-    throw new Error(`حداکثر ${MAX_KEYS_PER_USER} کلید API مجاز است.`);
-  }
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+    const count = await tx.apiKey.count({ where: { userId } });
+    if (count >= MAX_KEYS_PER_USER) {
+      throw new Error(`حداکثر ${MAX_KEYS_PER_USER} کلید API مجاز است.`);
+    }
 
-  const secret = `${API_KEY_PREFIX}${randomBytes(32).toString("base64url")}`;
-  const keyPrefix = `${secret.slice(0, 12)}…`;
-  const row = await prisma.apiKey.create({
-    data: {
-      id: nanoid(16),
-      userId,
-      name,
-      keyPrefix,
-      keyHash: hashApiKey(secret),
-    },
-    select: {
-      id: true,
-      name: true,
-      keyPrefix: true,
-      createdAt: true,
-      lastUsedAt: true,
-    },
+    const secret = `${API_KEY_PREFIX}${randomBytes(32).toString("base64url")}`;
+    const keyPrefix = `${secret.slice(0, 12)}…`;
+    const row = await tx.apiKey.create({
+      data: {
+        id: nanoid(16),
+        userId,
+        name,
+        keyPrefix,
+        keyHash: hashApiKey(secret),
+        scopes,
+      },
+      select: {
+        scopes: true,
+        id: true,
+        name: true,
+        keyPrefix: true,
+        createdAt: true,
+        lastUsedAt: true,
+      },
+    });
+
+    return { apiKey: mapApiKey(row), secret };
   });
-
-  return { apiKey: mapApiKey(row), secret };
 }
 
 export async function deleteApiKey(
@@ -107,6 +125,8 @@ export async function authenticateApiKey(
     include: { user: true },
   });
   if (!row) return null;
+  const requiredScope = request.method === "GET" ? "links:read" : "links:write";
+  if (!row.scopes.includes(requiredScope)) return null;
 
   await prisma.apiKey
     .update({

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     console.log("Contact form submission received:", { name, email, message });
 
     return NextResponse.json({ message: "پیام با موفقیت دریافت شد." }, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "خطای سرور داخلی" }, { status: 500 });
   }
 }

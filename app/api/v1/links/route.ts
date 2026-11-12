@@ -1,9 +1,11 @@
+import { parseLinkMetadata } from "@/lib/linkMetadata";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/apiKeyStore";
 import {
   createShortUrlWithDebit,
   DEFAULT_SHORT_CODE_LENGTH,
   listLinksForUser,
+  parseLinkPage,
   MAX_SHORT_CODE_LENGTH,
   MIN_SHORT_CODE_LENGTH,
 } from "@/lib/urlStore";
@@ -11,6 +13,7 @@ import { parseSafeHttpUrl, UnsafeUrlError } from "@/lib/urlValidation";
 import { getPublicBaseUrl } from "@/lib/publicBaseUrl";
 import { CREDIT_COST_SHORTEN } from "@/lib/credits";
 import { enforceRateLimit } from "@/lib/rateLimit";
+import { ApiError, apiErrorResponse } from "@/lib/apiResponse";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 const noStore = { "Cache-Control": "private, no-store, max-age=0" };
@@ -32,11 +35,16 @@ export async function GET(request: NextRequest) {
   if (!user) return unauthorized();
 
   const base = getPublicBaseUrl(request);
-  const links = (await listLinksForUser(user.id)).map((link) => ({
+  const data = await listLinksForUser(
+    user.id,
+    parseLinkPage(request.nextUrl.searchParams.get("page") ?? undefined),
+    Object.fromEntries(request.nextUrl.searchParams),
+  );
+  const links = data.links.map((link) => ({
     ...link,
     shortUrl: `${base}/${link.code}`,
   }));
-  return NextResponse.json({ links }, { headers: noStore });
+  return NextResponse.json({ ...data, links }, { headers: noStore });
 }
 
 export async function POST(request: NextRequest) {
@@ -89,7 +97,13 @@ export async function POST(request: NextRequest) {
         : null;
     const result = await createShortUrlWithDebit(
       parsed.toString(),
-      { codeLength, expiresInMs, password },
+      {
+        codeLength,
+        expiresInMs,
+        password,
+        ...parseLinkMetadata(body),
+        idempotencyKey: request.headers.get("Idempotency-Key") ?? undefined,
+      },
       user.id,
       CREDIT_COST_SHORTEN,
       "کوتاه‌سازی لینک از API",
@@ -112,6 +126,7 @@ export async function POST(request: NextRequest) {
       { status: 201, headers: noStore },
     );
   } catch (error) {
+    if (error instanceof ApiError) return apiErrorResponse(error);
     const message =
       error instanceof UnsafeUrlError || error instanceof Error
         ? error.message

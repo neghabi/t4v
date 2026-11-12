@@ -4,7 +4,7 @@ import {
   verifyDashboardToken,
 } from "@/lib/dashboardAuth";
 
-export function isAdminRequest(request: NextRequest): boolean {
+export async function isAdminRequest(request: NextRequest): Promise<boolean> {
   return verifyDashboardToken(
     request.cookies.get(DASHBOARD_COOKIE_NAME)?.value,
   );

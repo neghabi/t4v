@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeScript } from "@/components/ThemeScript";
+import { SITE_URL } from "@/lib/siteUrl";
+import {MotionEnhancer} from "@/components/MotionEnhancer";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://t4v.ir"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "T4V | کوتاه‌کننده لینک و QR حرفه‌ای",
     template: "%s | T4V",
@@ -23,7 +25,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fa_IR",
-    url: "https://t4v.ir",
+    url: SITE_URL,
     siteName: "T4V",
     title: "T4V | کوتاه‌کننده لینک و QR حرفه‌ای",
     description:
@@ -66,7 +68,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full bg-[#f4f6fa] font-sans text-zinc-950 antialiased dark:bg-[#08080c] dark:text-zinc-100">
+      <body className="min-h-full font-sans antialiased">
+        <MotionEnhancer/>
         {children}
       </body>
     </html>

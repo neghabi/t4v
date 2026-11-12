@@ -4,9 +4,11 @@ import {
   DASHBOARD_COOKIE_NAME,
   issueDashboardToken,
   verifyDashboardPassword,
+  authenticateAdmin,
 } from "@/lib/dashboardAuth";
 import { shouldUseSecureCookies } from "@/lib/cookieSecurity";
 import { enforceRateLimit } from "@/lib/rateLimit";
+import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   const limited = await enforceRateLimit(
@@ -31,11 +33,23 @@ export async function POST(request: NextRequest) {
       ? (body as { password: string }).password
       : "";
 
-  if (!verifyDashboardPassword(pwd)) {
-    return NextResponse.json({ error: "رمز داشبورد نادرست است." }, { status: 401 });
+  const username =
+    typeof body === "object" &&
+    body !== null &&
+    "username" in body &&
+    typeof body.username === "string"
+      ? body.username
+      : "";
+  const account = await authenticateAdmin(username, pwd);
+  const legacyAllowed = (await prisma.adminAccount.count()) === 0;
+  if (!account && !(legacyAllowed && verifyDashboardPassword(pwd))) {
+    return NextResponse.json(
+      { error: "نام کاربری یا رمز عبور صحیح نیست." },
+      { status: 401 },
+    );
   }
 
-  const token = issueDashboardToken();
+  const token = issueDashboardToken(account ?? undefined);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(DASHBOARD_COOKIE_NAME, token, {
     httpOnly: true,
