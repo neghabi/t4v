@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:auth-errors": "node scripts/test-auth-errors.mjs",
     "admin:create": "node scripts/create-admin.mjs",
     "test:admin": "node scripts/test-admin.mjs",
     "test:payments": "node scripts/test-payments.mjs",

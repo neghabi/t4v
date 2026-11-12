@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/readApiResponse";
+
 import {
   KeyRound,
   Pencil,
@@ -87,10 +89,9 @@ export function AdminUsersPanel({
           body: JSON.stringify(body),
         },
       );
-      const data = (await response.json()) as {
-        user?: AdminUser;
-        error?: string;
-      };
+      const data = await readApiResponse<{ user?: AdminUser; error?: string }>(
+        response,
+      );
       if (!response.ok || !data.user) {
         throw new Error(data.error ?? "ذخیره کاربر انجام نشد.");
       }

@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/readApiResponse";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -21,7 +23,7 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = await readApiResponse<{ error?: string }>(res);
       if (!res.ok) {
         throw new Error(data.error ?? "ورود ناموفق");
       }
@@ -37,7 +39,10 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
   return (
     <form className="mt-8 space-y-4" onSubmit={onSubmit}>
       <div>
-        <label htmlFor="login-email" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label
+          htmlFor="login-email"
+          className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400"
+        >
           ایمیل
         </label>
         <input
@@ -52,7 +57,10 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
         />
       </div>
       <div>
-        <label htmlFor="login-password" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label
+          htmlFor="login-password"
+          className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400"
+        >
           رمز عبور
         </label>
         <input
@@ -78,10 +86,18 @@ export function LoginForm({ nextHref }: { nextHref: string }) {
       >
         {loading ? "لطفاً صبر کنید…" : "ورود"}
       </button>
-      <Link href="/forgot-password" className="block text-center text-sm text-brand-700 dark:text-brand-300">رمز عبور را فراموش کرده‌ام</Link>
+      <Link
+        href="/forgot-password"
+        className="block text-center text-sm text-brand-700 dark:text-brand-300"
+      >
+        رمز عبور را فراموش کرده‌ام
+      </Link>
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         حساب ندارید؟{" "}
-        <Link href="/register" className="font-medium text-brand-700 hover:underline dark:text-brand-300">
+        <Link
+          href="/register"
+          className="font-medium text-brand-700 hover:underline dark:text-brand-300"
+        >
           ثبت‌نام
         </Link>
       </p>

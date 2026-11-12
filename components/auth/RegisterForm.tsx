@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/readApiResponse";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -21,7 +23,7 @@ export function RegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = await readApiResponse<{ error?: string }>(res);
       if (!res.ok) {
         throw new Error(data.error ?? "ثبت‌نام ناموفق");
       }
@@ -37,7 +39,10 @@ export function RegisterForm() {
   return (
     <form className="mt-8 space-y-4" onSubmit={onSubmit}>
       <div>
-        <label htmlFor="register-email" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label
+          htmlFor="register-email"
+          className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400"
+        >
           ایمیل
         </label>
         <input
@@ -52,7 +57,10 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label htmlFor="register-password" className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+        <label
+          htmlFor="register-password"
+          className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400"
+        >
           رمز عبور (حداقل ۸ نویسه)
         </label>
         <input
@@ -82,7 +90,10 @@ export function RegisterForm() {
       </button>
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         قبلاً ثبت‌نام کرده‌اید؟{" "}
-        <Link href="/login" className="font-medium text-brand-700 hover:underline dark:text-brand-300">
+        <Link
+          href="/login"
+          className="font-medium text-brand-700 hover:underline dark:text-brand-300"
+        >
           ورود
         </Link>
       </p>

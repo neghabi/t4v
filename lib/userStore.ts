@@ -1,3 +1,4 @@
+import { ApiError } from "@/lib/apiResponse";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/db";
 import { hashLinkPassword, verifyLinkPassword } from "@/lib/password";
@@ -94,10 +95,10 @@ export async function createUser(
 ): Promise<UserPublic> {
   const normalizedEmail = normalizeEmail(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-    throw new Error("ایمیل معتبر نیست.");
+    throw new ApiError("ایمیل معتبر نیست.");
   }
   if (password.length < 8 || password.length > 128) {
-    throw new Error("رمز باید بین ۸ تا ۱۲۸ نویسه باشد.");
+    throw new ApiError("رمز باید بین ۸ تا ۱۲۸ نویسه باشد.");
   }
 
   const passwordHash = await hashLinkPassword(password);
@@ -123,7 +124,7 @@ export async function createUser(
     return toPublic(mapUser(user));
   } catch (error) {
     if (isPrismaErrorCode(error, "P2002")) {
-      throw new Error("این ایمیل قبلاً ثبت شده است.");
+      throw new ApiError("این ایمیل قبلاً ثبت شده است.");
     }
     throw error;
   }
@@ -146,7 +147,7 @@ export async function spendCredits(
   { ok: true; user: UserRecord } | { ok: false; reason: "insufficient" }
 > {
   if (!Number.isInteger(amount) || amount <= 0) {
-    throw new Error("مبلغ نامعتبر است.");
+    throw new ApiError("مبلغ نامعتبر است.");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -171,7 +172,11 @@ export async function simulateSendDebit(
 ): Promise<
   { ok: true; user: UserRecord } | { ok: false; reason: "insufficient" }
 > {
-  return spendCredits(userId, CREDIT_COST_SIMULATED_SEND, "ارسال شبیه‌سازی‌شده");
+  return spendCredits(
+    userId,
+    CREDIT_COST_SIMULATED_SEND,
+    "ارسال شبیه‌سازی‌شده",
+  );
 }
 
 export async function getLedger(userId: string): Promise<LedgerEntry[]> {
@@ -190,20 +195,20 @@ export async function getLedger(userId: string): Promise<LedgerEntry[]> {
 
 function validateCredits(credits: number): void {
   if (!Number.isInteger(credits) || credits < 0 || credits > 1_000_000_000) {
-    throw new Error("اعتبار باید یک عدد صحیح بین صفر تا یک میلیارد باشد.");
+    throw new ApiError("اعتبار باید یک عدد صحیح بین صفر تا یک میلیارد باشد.");
   }
 }
 
 function validatePassword(password: string): void {
   if (password.length < 8 || password.length > 128) {
-    throw new Error("رمز باید بین ۸ تا ۱۲۸ نویسه باشد.");
+    throw new ApiError("رمز باید بین ۸ تا ۱۲۸ نویسه باشد.");
   }
 }
 
 function validateEmail(email: string): string {
   const normalized = normalizeEmail(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
-    throw new Error("ایمیل معتبر نیست.");
+    throw new ApiError("ایمیل معتبر نیست.");
   }
   return normalized;
 }
@@ -283,7 +288,7 @@ export async function adminCreateUser(input: {
     return mapAdminUser(row);
   } catch (error) {
     if (isPrismaErrorCode(error, "P2002")) {
-      throw new Error("این ایمیل قبلاً ثبت شده است.");
+      throw new ApiError("این ایمیل قبلاً ثبت شده است.");
     }
     throw error;
   }
@@ -341,7 +346,7 @@ export async function adminUpdateUser(
     });
   } catch (error) {
     if (isPrismaErrorCode(error, "P2002")) {
-      throw new Error("این ایمیل قبلاً ثبت شده است.");
+      throw new ApiError("این ایمیل قبلاً ثبت شده است.");
     }
     throw error;
   }
