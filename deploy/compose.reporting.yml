@@ -1,0 +1,14 @@
+# Add to the existing db/web deployment AFTER migrations have succeeded.
+# Uses the existing db network; no ports or database volumes are changed.
+services:
+  analytics-worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the same value used by web}
+    network_mode: "service:db"
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true

@@ -6,6 +6,7 @@ export function AnalyticsPanel({ code }: { code?: string }) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     fetch(
@@ -22,7 +23,7 @@ export function AnalyticsPanel({ code }: { code?: string }) {
         if (e.name !== "AbortError") setError("دریافت گزارش ممکن نشد.");
       });
     return () => controller.abort();
-  }, [days, code]);
+  }, [days, code, refresh]);
   const max = Math.max(1, ...(data?.daily.map((d) => d.clicks) ?? []));
   return (
     <section className="surface p-5 md:p-7">
@@ -33,6 +34,13 @@ export function AnalyticsPanel({ code }: { code?: string }) {
             زمان‌ها بر اساس UTC · بازدیدهای شناسایی‌شدهٔ ربات‌ها حذف می‌شوند
           </p>
         </div>
+        <button
+          type="button"
+          className="button-secondary"
+          onClick={() => setRefresh((value) => value + 1)}
+        >
+          به‌روزرسانی
+        </button>
         <select
           aria-label="بازه گزارش"
           className="field !w-auto"
@@ -54,6 +62,13 @@ export function AnalyticsPanel({ code }: { code?: string }) {
         <p className="py-12 text-center">در حال دریافت گزارش…</p>
       ) : (
         <>
+          {data.pending > 0 && (
+            <p className="notice" role="status">
+              {data.pending.toLocaleString("fa-IR")} کلیک در صف پردازش است و
+              هنوز در این گزارش محاسبه نشده است. برای مشاهده نتیجه، گزارش را
+              به‌روزرسانی کنید؛ اگر صف خالی نشد، به مدیر سامانه اطلاع دهید.
+            </p>
+          )}
           <div className="my-7 flex gap-12">
             <div>
               <p className="section-note">بازدید</p>

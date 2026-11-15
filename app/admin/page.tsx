@@ -95,6 +95,9 @@ export default async function AdminPage({
           </div>
 
           <nav className="mt-7 flex flex-wrap gap-3" aria-label="منوی مدیریت">
+            <Link className="button-secondary" href="/admin/reports">
+              گزارش مصرف و کلیک‌ها
+            </Link>
             <Link className="button-secondary" href="/admin/settings">
               تنظیمات ایمیل و پیامک
             </Link>

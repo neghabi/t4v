@@ -5,6 +5,8 @@ const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   options: "-c timezone=UTC",
   max: 2,
+  connectionTimeoutMillis: 10000,
+  query_timeout: 30000,
 });
 let running = true;
 process.on("SIGINT", () => {
@@ -15,9 +17,16 @@ process.on("SIGTERM", () => {
 });
 let lastCleanup = 0;
 let lastPaymentMaintenance = 0;
+console.log(
+  JSON.stringify({
+    level: "info",
+    service: "analytics-worker",
+    event: "started",
+  }),
+);
 while (running) {
   try {
-    await pool.query(`WITH picked AS (
+    const batch = await pool.query(`WITH picked AS (
       SELECT * FROM click_events WHERE available_at <= NOW() ORDER BY available_at LIMIT 100 FOR UPDATE SKIP LOCKED
     ), inserted AS (
       INSERT INTO link_clicks (link_code, clicked_at, referer, user_agent, ip_hash, event_id)
@@ -26,6 +35,15 @@ while (running) {
     ), counts AS (SELECT link_code, COUNT(*)::int AS n FROM inserted GROUP BY link_code), bumped AS (
       UPDATE short_links s SET click_count=s.click_count+counts.n FROM counts WHERE s.code=counts.link_code RETURNING s.code
     ) DELETE FROM click_events WHERE id IN (SELECT id FROM picked)`);
+    if (batch.rowCount > 0)
+      console.log(
+        JSON.stringify({
+          level: "info",
+          service: "analytics-worker",
+          event: "click_batch_completed",
+          events: batch.rowCount,
+        }),
+      );
     if (Date.now() - lastPaymentMaintenance > 60_000) {
       await pool.query(
         `WITH expired AS (UPDATE payments SET status='expired' WHERE status='pending' AND expires_at<NOW() AND verify_lease_until IS NULL RETURNING id) INSERT INTO payment_events(payment_id,kind) SELECT id,'expired' FROM expired`,
@@ -55,7 +73,8 @@ while (running) {
       JSON.stringify({
         level: "error",
         service: "analytics-worker",
-        message: error.message,
+        event: "processing_failed",
+        code: error.code ?? "UNKNOWN",
       }),
     );
     await delay(4000);
