@@ -1,3 +1,4 @@
+import { profileInput } from "@/lib/identityInput";
 import { apiErrorResponse } from "@/lib/apiResponse";
 import { NextRequest, NextResponse } from "next/server";
 import { createUser } from "@/lib/userStore";
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     const email = typeof b.email === "string" ? b.email : "";
     const password = typeof b.password === "string" ? b.password : "";
 
-    const user = await createUser(email, password);
+    const user = await createUser(email, password, profileInput(b));
     const token = await createSessionToken(
       user.id,
       request.headers.get("user-agent"),

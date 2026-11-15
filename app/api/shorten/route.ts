@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
           : null,
       hasPassword: Boolean(password),
       codeLength: code.length,
+      moderationStatus: result.moderationStatus,
       credits,
     });
   } catch (e) {

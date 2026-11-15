@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { LinkQr } from "@/components/LinkQr";
 import type { ListedLink } from "@/lib/urlStore";
+import { statusLabel } from "@/components/IdentityPanel";
 
 function formatDate(ms: number) {
   return new Intl.DateTimeFormat("fa-IR", {
@@ -337,6 +338,14 @@ export function DashboardLinksPanel({
                       {link.clicksLast24h}
                     </td>
                     <td className="px-4 py-3">
+                      <p className="mb-2 text-xs font-bold">
+                        {statusLabel(link.moderationStatus)}
+                      </p>
+                      {link.moderationNote && (
+                        <p className="mb-2 max-w-48 text-xs">
+                          {link.moderationNote}
+                        </p>
+                      )}
                       {link.hasPassword ? (
                         <span className="text-emerald-700 dark:text-emerald-300">
                           دارد

@@ -2,7 +2,10 @@ import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { SiteHeader } from "@/components/SiteChrome";
 
-export const metadata = { title: "ساخت حساب", robots: { index: false, follow: false } };
+export const metadata = {
+  title: "ساخت حساب",
+  robots: { index: false, follow: false },
+};
 
 export default function RegisterPage() {
   return (
@@ -14,8 +17,8 @@ export default function RegisterPage() {
             ساخت حساب کاربری
           </h1>
           <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
-            با ثبت‌نام، اعتبار خوش‌آمدگویی دریافت می‌کنید و لینک‌هایتان در داشبورد
-            شخصی ذخیره می‌شود.
+            اطلاعات صاحب حساب و نوع فعالیت را ثبت کنید. فعال‌سازی لینک‌ها پس از
+            تأیید ایمیل، موبایل، مدارک هویتی و بررسی مدیر انجام می‌شود.
           </p>
           <RegisterForm />
           <Link

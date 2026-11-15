@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         code: result.code,
+        moderationStatus: result.moderationStatus,
         shortUrl,
         original: parsed.toString(),
         credits: result.credits,

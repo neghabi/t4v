@@ -18,8 +18,14 @@ export function apiErrorResponse(error: unknown) {
       JSON.stringify({
         level: "error",
         requestId,
+        // Prisma messages can include query arguments and private identity data.
         message:
-          error instanceof Error ? error.message : "Unexpected server error",
+          error instanceof Error ? error.name : "Unexpected server error",
+        code:
+          error && typeof error === "object" && "code" in error
+            ? String(error.code)
+            : "unknown",
+        databaseUnavailable,
       }),
     );
   return NextResponse.json(
@@ -55,7 +61,14 @@ export function apiErrorResponse(error: unknown) {
 
 function isDatabaseUnavailable(error: unknown, depth = 0): boolean {
   if (!error || typeof error !== "object" || depth > 5) return false;
-  const value = error as { code?: string; cause?: unknown; errors?: unknown[] };
+  const value = error as {
+    code?: string;
+    originalCode?: string;
+    kind?: string;
+    cause?: unknown;
+    meta?: { driverAdapterError?: unknown };
+    errors?: unknown[];
+  };
   return (
     [
       "P1000",
@@ -70,8 +83,18 @@ function isDatabaseUnavailable(error: unknown, depth = 0): boolean {
       "28P01",
       "3D000",
       "57P03",
-    ].includes(value.code ?? "") ||
+    ].includes(value.originalCode ?? value.code ?? "") ||
+    [
+      "DatabaseNotReachable",
+      "AuthenticationFailed",
+      "DatabaseDoesNotExist",
+      "DatabaseAccessDenied",
+      "ConnectionClosed",
+      "SocketTimeout",
+      "TlsConnectionError",
+    ].includes(value.kind ?? "") ||
     isDatabaseUnavailable(value.cause, depth + 1) ||
+    isDatabaseUnavailable(value.meta?.driverAdapterError, depth + 1) ||
     (Array.isArray(value.errors) &&
       value.errors.some((item) => isDatabaseUnavailable(item, depth + 1)))
   );

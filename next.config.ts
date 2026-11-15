@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     ];
     return [
       { source: "/dashboard", headers: privateNoStore },
+      { source: "/dashboard/:path*", headers: privateNoStore },
       { source: "/admin", headers: privateNoStore },
       { source: "/admin/:path*", headers: privateNoStore },
       { source: "/checkout/:path*", headers: privateNoStore },

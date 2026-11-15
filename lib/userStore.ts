@@ -1,3 +1,4 @@
+import type { profileInput } from "@/lib/identityInput";
 import { ApiError } from "@/lib/apiResponse";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/db";
@@ -31,10 +32,19 @@ export type UserPublic = {
 };
 
 export type AdminUser = UserPublic & {
+  fullName: string;
+  phone: string | null;
+  identityStatus: string;
+  accountStatus: string;
+  accountPlan: string;
+  activityType: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   updatedAt: number;
   linkCount: number;
   sessionCount: number;
   apiKeyCount: number;
+  purchaseCount: number;
 };
 
 function normalizeEmail(email: string): string {
@@ -72,12 +82,12 @@ export async function findUserByEmail(
   const user = await prisma.user.findUnique({
     where: { email: normalizeEmail(email) },
   });
-  return user ? mapUser(user) : null;
+  return user && user.accountStatus === "active" ? mapUser(user) : null;
 }
 
 export async function getUserById(id: string): Promise<UserRecord | null> {
   const user = await prisma.user.findUnique({ where: { id } });
-  return user ? mapUser(user) : null;
+  return user && user.accountStatus === "active" ? mapUser(user) : null;
 }
 
 export function toPublic(user: UserRecord): UserPublic {
@@ -92,9 +102,13 @@ export function toPublic(user: UserRecord): UserPublic {
 export async function createUser(
   email: string,
   password: string,
+  profile?: ReturnType<typeof profileInput>,
 ): Promise<UserPublic> {
   const normalizedEmail = normalizeEmail(email);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+  if (
+    normalizedEmail.length > 320 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+  ) {
     throw new ApiError("ایمیل معتبر نیست.");
   }
   if (password.length < 8 || password.length > 128) {
@@ -110,6 +124,8 @@ export async function createUser(
         id: nanoid(12),
         email: normalizedEmail,
         passwordHash,
+        ...profile,
+        termsAcceptedAt: profile ? new Date() : null,
         credits: INITIAL_USER_CREDITS,
         createdAt: now,
         ledger: {
@@ -214,12 +230,25 @@ function validateEmail(email: string): string {
 }
 
 function mapAdminUser(row: {
+  fullName: string;
+  phone: string | null;
+  identityStatus: string;
+  accountStatus: string;
+  accountPlan: string;
+  activityType: string;
+  emailVerifiedAt: Date | null;
+  phoneVerifiedAt: Date | null;
   id: string;
   email: string;
   credits: number;
   createdAt: Date;
   updatedAt: Date;
-  _count: { links: number; sessions: number; apiKeys: number };
+  _count: {
+    links: number;
+    sessions: number;
+    apiKeys: number;
+    payments: number;
+  };
 }): AdminUser {
   return {
     id: row.id,
@@ -227,13 +256,30 @@ function mapAdminUser(row: {
     credits: row.credits,
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
+    fullName: row.fullName,
+    phone: row.phone,
+    identityStatus: row.identityStatus,
+    accountStatus: row.accountStatus,
+    accountPlan: row.accountPlan,
+    activityType: row.activityType,
+    emailVerified: Boolean(row.emailVerifiedAt),
+    phoneVerified: Boolean(row.phoneVerifiedAt),
     linkCount: row._count.links,
     sessionCount: row._count.sessions,
     apiKeyCount: row._count.apiKeys,
+    purchaseCount: row._count.payments,
   };
 }
 
 const adminUserSelect = {
+  fullName: true,
+  phone: true,
+  identityStatus: true,
+  accountStatus: true,
+  accountPlan: true,
+  activityType: true,
+  emailVerifiedAt: true,
+  phoneVerifiedAt: true,
   id: true,
   email: true,
   credits: true,
@@ -244,6 +290,7 @@ const adminUserSelect = {
       links: true,
       sessions: true,
       apiKeys: true,
+      payments: { where: { status: "paid" } },
     },
   },
 } as const;
@@ -324,6 +371,16 @@ export async function adminUpdateUser(
         where: { id },
         data: {
           email,
+          ...(email &&
+          email !==
+            (
+              await tx.user.findUniqueOrThrow({
+                where: { id },
+                select: { email: true },
+              })
+            ).email
+            ? { emailVerifiedAt: null, identityStatus: "pending" }
+            : {}),
           credits: input.credits,
           passwordHash,
         },

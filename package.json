@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:identity": "node scripts/test-identity.mjs",
+    "test:notifications": "node scripts/test-notification-providers.mjs",
+    "db:diagnose": "node scripts/diagnose-database.mjs",
+    "db:setup": "node scripts/setup-database.mjs",
+    "test:server-setup": "node scripts/test-server-setup.mjs",
     "test:auth-errors": "node scripts/test-auth-errors.mjs",
     "admin:create": "node scripts/create-admin.mjs",
     "test:admin": "node scripts/test-admin.mjs",
@@ -28,6 +33,7 @@
     "lucide-react": "^1.31.0",
     "nanoid": "^6.0.1",
     "next": "^16.3.1",
+    "nodemailer": "^10.5.0",
     "pg": "^8.23.0",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
@@ -36,6 +42,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.21.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",

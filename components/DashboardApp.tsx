@@ -97,6 +97,9 @@ export function DashboardApp({
         <Brand />
         <p className="sidebar-caption">فضای کاری شما</p>
         <nav className="grid gap-1">
+          <Link href="/dashboard/identity" className="sidebar-item">
+            پرونده و احراز هویت
+          </Link>
           {nav.map((n) => (
             <Link
               key={n.id}
@@ -149,6 +152,16 @@ export function DashboardApp({
           </div>
         </header>
         <main className="app-content">
+          <p className="notice mb-6">
+            فعال‌سازی لینک‌ها پس از تکمیل{" "}
+            <Link
+              className="font-bold text-brand-600"
+              href="/dashboard/identity"
+            >
+              پرونده و احراز هویت
+            </Link>{" "}
+            و تأیید مدیر انجام می‌شود.
+          </p>
           <div className="stat-grid mb-7">
             {[
               { label: "تمام لینک‌ها", value: summary.totalLinks },
@@ -205,6 +218,9 @@ export function DashboardApp({
                   defaultValue={params.status ?? ""}
                 >
                   <option value="">همه وضعیت‌ها</option>
+                  <option value="pending">در انتظار بررسی</option>
+                  <option value="suspended">معلق</option>
+                  <option value="rejected">رد شده</option>
                   <option value="active">فعال</option>
                   <option value="expired">منقضی</option>
                   <option value="protected">رمزدار</option>

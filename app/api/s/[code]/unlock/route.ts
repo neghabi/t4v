@@ -30,8 +30,16 @@ export async function POST(
   if (!rec) {
     return NextResponse.json({ error: "لینک یافت نشد." }, { status: 404 });
   }
+  if (rec.moderationStatus !== "approved")
+    return NextResponse.json(
+      { error: "این لینک فعال نیست یا در انتظار تأیید مدیر است." },
+      { status: 403 },
+    );
   if (rec.expiresAt != null && rec.expiresAt < Date.now()) {
-    return NextResponse.json({ error: "این لینک منقضی شده است." }, { status: 410 });
+    return NextResponse.json(
+      { error: "این لینک منقضی شده است." },
+      { status: 410 },
+    );
   }
   if (!rec.passwordHash) {
     return NextResponse.json({ error: "این لینک رمز ندارد." }, { status: 400 });
@@ -56,7 +64,11 @@ export async function POST(
     return NextResponse.json({ error: "رمز نادرست است." }, { status: 401 });
   }
 
-  const token = issueGatePayload(code, GATE_COOKIE_MAX_AGE_SEC * 1000, rec.passwordHash);
+  const token = issueGatePayload(
+    code,
+    GATE_COOKIE_MAX_AGE_SEC * 1000,
+    rec.passwordHash,
+  );
   const res = NextResponse.json({ ok: true });
   res.cookies.set(GATE_COOKIE_NAME, token, {
     httpOnly: true,

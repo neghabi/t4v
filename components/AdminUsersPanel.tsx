@@ -1,6 +1,8 @@
 "use client";
 
 import { readApiResponse } from "@/lib/readApiResponse";
+import Link from "next/link";
+import { statusLabel } from "@/components/IdentityPanel";
 
 import {
   KeyRound,
@@ -28,6 +30,9 @@ export function AdminUsersPanel({
 }) {
   const [users, setUsers] = useState(initialUsers);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+  const [purchaseFilter, setPurchaseFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [email, setEmail] = useState("");
@@ -38,13 +43,21 @@ export function AdminUsersPanel({
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return users;
     return users.filter(
       (user) =>
-        user.email.toLowerCase().includes(needle) ||
-        user.id.toLowerCase().includes(needle),
+        (!statusFilter ||
+          user.identityStatus === statusFilter ||
+          user.accountStatus === statusFilter) &&
+        (!planFilter || user.accountPlan === planFilter) &&
+        (!purchaseFilter ||
+          (purchaseFilter === "paid"
+            ? user.purchaseCount > 0
+            : user.purchaseCount === 0)) &&
+        [user.email, user.id, user.fullName, user.phone ?? ""].some((value) =>
+          value.toLowerCase().includes(needle),
+        ),
     );
-  }, [query, users]);
+  }, [query, users, statusFilter, planFilter, purchaseFilter]);
 
   function openCreate() {
     setEditing(null);
@@ -169,6 +182,54 @@ export function AdminUsersPanel({
         <span className="text-xs text-zinc-500">{filtered.length} کاربر</span>
       </div>
 
+      <div className="mt-4 flex flex-wrap gap-3">
+        <label className="field-label">
+          احراز هویت و وضعیت
+          <select
+            className="field"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">همه</option>
+            {[
+              "unsubmitted",
+              "pending",
+              "approved",
+              "rejected",
+              "suspended",
+            ].map((status) => (
+              <option key={status} value={status}>
+                {statusLabel(status)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-label">
+          سطح حساب
+          <select
+            className="field"
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+          >
+            <option value="">همه</option>
+            <option value="standard">استاندارد</option>
+            <option value="business">تجاری</option>
+            <option value="enterprise">سازمانی</option>
+          </select>
+        </label>
+        <label className="field-label">
+          سابقهٔ خرید
+          <select
+            className="field"
+            value={purchaseFilter}
+            onChange={(e) => setPurchaseFilter(e.target.value)}
+          >
+            <option value="">همه</option>
+            <option value="paid">دارای خرید موفق</option>
+            <option value="free">بدون خرید موفق</option>
+          </select>
+        </label>
+      </div>
       {error && !modalOpen ? (
         <p className="mt-4 rounded-xl bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-200">
           {error}
@@ -203,6 +264,26 @@ export function AdminUsersPanel({
               filtered.map((user) => (
                 <tr key={user.id} className="text-zinc-800 dark:text-zinc-200">
                   <td className="px-4 py-3">
+                    <Link
+                      className="mb-2 block font-bold text-brand-600"
+                      href={`/admin/users/${user.id}`}
+                    >
+                      {user.fullName || user.email}
+                    </Link>
+                    <p className="mb-2 text-xs">
+                      {statusLabel(user.identityStatus)} /{" "}
+                      {statusLabel(user.accountStatus)}
+                    </p>
+                    <p className="mb-2 text-xs">
+                      {user.emailVerified
+                        ? "ایمیل تأییدشده"
+                        : "ایمیل تأییدنشده"}{" "}
+                      /{" "}
+                      {user.phoneVerified
+                        ? "موبایل تأییدشده"
+                        : "موبایل تأییدنشده"}{" "}
+                      / {user.purchaseCount} خرید موفق
+                    </p>
                     <p className="font-medium" dir="ltr">
                       {user.email}
                     </p>

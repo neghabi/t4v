@@ -30,6 +30,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
 
+COPY scripts/create-admin.mjs scripts/diagnose-database.mjs scripts/setup-database.mjs ./scripts/
+
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 FROM base AS worker

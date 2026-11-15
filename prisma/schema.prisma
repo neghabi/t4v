@@ -25,6 +25,20 @@ model User {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
   emailVerifiedAt DateTime?   @map("email_verified_at")
+  fullName String @default("") @map("full_name") @db.VarChar(120)
+  // Uniqueness is enforced only for verified numbers by a partial SQL index.
+  phone String? @db.VarChar(20)
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  organization String @default("") @db.VarChar(160)
+  activityType String @default("personal") @map("activity_type") @db.VarChar(24)
+  intendedUse String @default("") @map("intended_use") @db.VarChar(1000)
+  accountStatus String @default("active") @map("account_status") @db.VarChar(16)
+  identityStatus String @default("unsubmitted") @map("identity_status") @db.VarChar(16)
+  reviewNote String @default("") @map("review_note") @db.VarChar(1000)
+  accountPlan String @default("standard") @map("account_plan") @db.VarChar(24)
+  termsAcceptedAt DateTime? @map("terms_accepted_at")
+  identityDocuments IdentityDocument[]
+  phoneChallenge PhoneChallenge?
   sessions     Session[]
   links        ShortLink[]
   ledger       CreditLedger[]
@@ -91,6 +105,9 @@ model ShortLink {
   clickCount   Int         @default(0) @map("click_count")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
+  moderationStatus String @default("pending") @map("moderation_status") @db.VarChar(16)
+  moderationNote String @default("") @map("moderation_note") @db.VarChar(1000)
+  reviewedAt DateTime? @map("reviewed_at")
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   clicks       LinkClick[]
   pendingClicks ClickEvent[]
@@ -224,4 +241,52 @@ model RateLimit {
 
   @@index([resetAt])
   @@map("rate_limits")
+}
+
+model IdentityDocument {
+  id String @id @db.VarChar(24)
+  userId String @map("user_id") @db.VarChar(24)
+  kind String @db.VarChar(24)
+  mimeType String @map("mime_type") @db.VarChar(40)
+  size Int
+  encryptedData Bytes @map("encrypted_data")
+  status String @default("pending") @db.VarChar(16)
+  note String @default("") @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at")
+  reviewedAt DateTime? @map("reviewed_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@map("identity_documents")
+}
+
+model PhoneChallenge {
+  userId String @id @map("user_id") @db.VarChar(24)
+  phone String @db.VarChar(20)
+  codeHash String @map("code_hash") @db.Char(64)
+  attempts Int @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@map("phone_challenges")
+}
+
+model ModerationAudit {
+  id BigInt @id @default(autoincrement())
+  actor String @db.VarChar(64)
+  subjectId String @map("subject_id") @db.VarChar(32)
+  action String @db.VarChar(40)
+  details Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([subjectId, createdAt])
+  @@map("moderation_audits")
+}
+
+model NotificationConfig {
+  id String @id @db.VarChar(16)
+  provider String @default("disabled") @db.VarChar(16)
+  endpoint String @default("") @db.VarChar(500)
+  encryptedToken String? @map("encrypted_token") @db.Text
+  options Json @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("notification_configs")
 }

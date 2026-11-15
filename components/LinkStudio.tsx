@@ -382,7 +382,8 @@ export function LinkStudio({
       {result && (
         <div className="mt-6 border-t border-[var(--line)] pt-6">
           <p className="mb-3 flex items-center gap-2 text-xs font-medium">
-            <Check className="size-4 text-emerald-600" /> لینک شما آماده است
+            <Check className="size-4 text-emerald-600" /> لینک ثبت شد؛ فعال‌سازی
+            پس از تأیید مدیر
           </p>
           <div
             className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--canvas)] p-2"

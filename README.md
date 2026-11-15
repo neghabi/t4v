@@ -106,6 +106,11 @@ npx tsc --noEmit
 
 ## استقرار
 
+[راهنمای احراز هویت، پرونده کاربران، تنظیم ایمیل و پیامک و نظارت بر لینک‌ها](deploy/IDENTITY-AND-MODERATION.fa.md).
+
+راهنمای تشخیص خطای ورود و ثبت‌نام روی Docker، تنظیم حساب پایگاه داده و ساخت مدیر سایت:
+[راهنمای حساب‌ها و راه‌اندازی سرور](deploy/SERVER-ACCOUNTS-GUIDE.fa.md).
+
 برای اجرای Docker روی ویندوز، `scripts/docker-up.ps1` را اجرا کنید. برای سرور
 دارای Docker و Docker Compose:
 

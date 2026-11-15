@@ -24,6 +24,21 @@ export default async function ShortLinkPage({
     redirect("/");
   }
 
+  if (rec.moderationStatus !== "approved")
+    return (
+      <main
+        className="mesh-bg flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center"
+        dir="rtl"
+      >
+        <h1 className="text-2xl font-bold">این لینک در حال حاضر فعال نیست</h1>
+        <p>
+          فعال‌سازی لینک به تأیید مدیر و تکمیل احراز هویت صاحب حساب نیاز دارد.
+        </p>
+        <Link className="button-secondary" href="/">
+          بازگشت به خانه
+        </Link>
+      </main>
+    );
   const now = Date.now();
   if (rec.expiresAt != null && rec.expiresAt < now) {
     return (
@@ -60,8 +75,7 @@ export default async function ShortLinkPage({
   const requestHeaders = await headers();
   const metadata = {
     ip:
-      requestHeaders.get("x-forwarded-for") ??
-      requestHeaders.get("x-real-ip"),
+      requestHeaders.get("x-forwarded-for") ?? requestHeaders.get("x-real-ip"),
     referer: requestHeaders.get("referer"),
     userAgent: requestHeaders.get("user-agent"),
   };
@@ -69,11 +83,11 @@ export default async function ShortLinkPage({
     await enqueueClick(code, metadata);
   } catch {
     after(async () => {
-    try {
-      await recordClick(code, metadata);
-    } catch {
-      console.error("Failed to record link click", code);
-    }
+      try {
+        await recordClick(code, metadata);
+      } catch {
+        console.error("Failed to record link click", code);
+      }
     });
   }
   redirect(rec.url);

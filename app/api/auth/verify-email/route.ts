@@ -20,9 +20,17 @@ export async function POST(request: NextRequest) {
     }
     const user = await getSessionUserFromRequest(request);
     if (!user) throw new ApiError("وارد حساب شوید.", 401);
+    const accountLimited = await enforceRateLimit(
+      request,
+      `verify-email:${user.id}`,
+      5,
+      3600000,
+      user.id,
+    );
+    if (accountLimited) return accountLimited;
     await sendAccountAction(user.id, "verify");
     return NextResponse.json({
-      message: "پیام تأیید به صندوق محلی فرستاده شد.",
+      message: "پیام تأیید ایمیل ارسال شد.",
     });
   } catch (error) {
     return apiErrorResponse(

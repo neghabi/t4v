@@ -30,6 +30,9 @@ const RESERVED_SHORT_CODES = new Set([
 ]);
 
 export type ShortLinkRecord = {
+  updatedAt: number;
+  moderationStatus: string;
+  moderationNote: string;
   url: string;
   createdAt: number;
   expiresAt: number | null;
@@ -54,6 +57,9 @@ export type ListedLink = {
   title: string;
   tags: string[];
   code: string;
+  updatedAt: number;
+  moderationStatus: string;
+  moderationNote: string;
   url: string;
   createdAt: number;
   expiresAt: number | null;
@@ -102,7 +108,10 @@ function resolveExpiry(options: SaveShortLinkOptions): Date | null {
 }
 
 function mapRecord(row: {
+  moderationStatus: string;
+  moderationNote: string;
   url: string;
+  updatedAt: Date;
   createdAt: Date;
   expiresAt: Date | null;
   passwordHash: string | null;
@@ -110,6 +119,9 @@ function mapRecord(row: {
   userId: string;
 }): ShortLinkRecord {
   return {
+    updatedAt: row.updatedAt.getTime(),
+    moderationStatus: row.moderationStatus,
+    moderationNote: row.moderationNote,
     url: row.url,
     createdAt: row.createdAt.getTime(),
     expiresAt: row.expiresAt?.getTime() ?? null,
@@ -127,7 +139,7 @@ export async function createShortUrlWithDebit(
   creditCost: number,
   debitReason: string,
 ): Promise<
-  | { ok: true; code: string; credits: number }
+  | { ok: true; code: string; credits: number; moderationStatus: string }
   | { ok: false; reason: "insufficient" }
 > {
   const title = options.title?.trim() ?? "";
@@ -198,6 +210,12 @@ export async function createShortUrlWithDebit(
     try {
       return await prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerUserId} FOR UPDATE`;
+        const owner = await tx.user.findUniqueOrThrow({
+          where: { id: ownerUserId },
+          select: { accountStatus: true },
+        });
+        if (owner.accountStatus !== "active")
+          throw new ApiError("حساب کاربر معلق است.", 403);
         if (requestKey) {
           const previous = await tx.shortLink.findUnique({
             where: { requestKey },
@@ -216,6 +234,7 @@ export async function createShortUrlWithDebit(
             return {
               ok: true as const,
               code: previous.code,
+              moderationStatus: previous.moderationStatus,
               credits: user.credits,
             };
           }
@@ -252,7 +271,7 @@ export async function createShortUrlWithDebit(
           where: { id: ownerUserId },
           select: { credits: true },
         });
-        return { ok: true as const, code, credits: user.credits };
+        return { ok: true as const, code, credits: user.credits, moderationStatus: "pending" };
       });
     } catch (error) {
       if (customCode && isPrismaErrorCode(error, "P2002"))
@@ -269,7 +288,27 @@ export async function createShortUrlWithDebit(
 }
 
 export async function getRecord(code: string): Promise<ShortLinkRecord | null> {
-  const row = await prisma.shortLink.findUnique({ where: { code } });
+  const row = await prisma.shortLink.findUnique({
+    where: { code },
+    include: {
+      user: {
+        select: {
+          accountStatus: true,
+          identityStatus: true,
+          emailVerifiedAt: true,
+          phoneVerifiedAt: true,
+        },
+      },
+    },
+  });
+  if (
+    row &&
+    (row.user.accountStatus !== "active" ||
+      row.user.identityStatus !== "approved" ||
+      !row.user.emailVerifiedAt ||
+      !row.user.phoneVerifiedAt)
+  )
+    return { ...mapRecord(row), moderationStatus: "suspended" };
   return row ? mapRecord(row) : null;
 }
 
@@ -277,7 +316,10 @@ function mapListed(row: {
   title: string;
   tags: string[];
   code: string;
+  moderationStatus: string;
+  moderationNote: string;
   url: string;
+  updatedAt: Date;
   createdAt: Date;
   expiresAt: Date | null;
   passwordHash: string | null;
@@ -290,6 +332,9 @@ function mapListed(row: {
     title: row.title,
     tags: row.tags,
     code: row.code,
+    updatedAt: row.updatedAt.getTime(),
+    moderationStatus: row.moderationStatus,
+    moderationNote: row.moderationNote,
     url: row.url,
     createdAt: row.createdAt.getTime(),
     expiresAt: row.expiresAt?.getTime() ?? null,
@@ -357,8 +402,15 @@ export function linkFilterWhere(
   if (filters.tag) conditions.push({ tags: { has: filters.tag.slice(0, 30) } });
   if (filters.status === "expired")
     conditions.push({ expiresAt: { lte: new Date() } });
+  if (
+    ["approved", "pending", "suspended", "rejected"].includes(
+      filters.status ?? "",
+    )
+  )
+    conditions.push({ moderationStatus: filters.status });
   if (filters.status === "active")
     conditions.push({
+      moderationStatus: "approved",
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     });
   if (filters.status === "protected")
@@ -392,8 +444,11 @@ async function listLinksPage(
   return { links: rows.map(mapListed), page, pageSize, total, totalPages };
 }
 
-export async function listAllLinks(page = 1): Promise<LinkPage> {
-  return listLinksPage(null, page);
+export async function listAllLinks(
+  page = 1,
+  filters: LinkFilters = {},
+): Promise<LinkPage> {
+  return listLinksPage(null, page, filters);
 }
 
 export async function listLinksForUser(
@@ -420,45 +475,51 @@ export async function updateLinkForUser(
   userId: string,
   input: UpdateShortLinkInput,
 ): Promise<ListedLink | null> {
-  const existing = await prisma.shortLink.findFirst({
-    where: { code, userId },
-    select: { code: true },
-  });
-  if (!existing) return null;
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id=${userId} FOR UPDATE`;
+    const existing = await tx.shortLink.findFirst({
+      where: { code, userId },
+      select: { code: true },
+    });
+    if (!existing) return null;
 
-  let passwordHash: string | null | undefined;
-  if (input.password === null) {
-    passwordHash = null;
-  } else if (input.password !== undefined) {
-    const password = input.password.trim();
-    if (password.length < 4 || password.length > 200) {
-      throw new Error("رمز باید بین ۴ تا ۲۰۰ نویسه باشد.");
+    let passwordHash: string | null | undefined;
+    if (input.password === null) {
+      passwordHash = null;
+    } else if (input.password !== undefined) {
+      const password = input.password.trim();
+      if (password.length < 4 || password.length > 200) {
+        throw new Error("رمز باید بین ۴ تا ۲۰۰ نویسه باشد.");
+      }
+      passwordHash = await hashLinkPassword(password);
     }
-    passwordHash = await hashLinkPassword(password);
-  }
 
-  let expiresAt: Date | null | undefined;
-  if (input.expiresAt === null) {
-    expiresAt = null;
-  } else if (input.expiresAt !== undefined) {
-    if (!Number.isFinite(input.expiresAt)) {
-      throw new Error("تاریخ انقضا معتبر نیست.");
+    let expiresAt: Date | null | undefined;
+    if (input.expiresAt === null) {
+      expiresAt = null;
+    } else if (input.expiresAt !== undefined) {
+      if (!Number.isFinite(input.expiresAt)) {
+        throw new Error("تاریخ انقضا معتبر نیست.");
+      }
+      expiresAt = new Date(input.expiresAt);
     }
-    expiresAt = new Date(input.expiresAt);
-  }
 
-  const row = await prisma.shortLink.update({
-    where: { code },
-    data: {
-      url: input.url,
-      title: input.title,
-      tags: input.tags,
-      expiresAt,
-      passwordHash,
-    },
-    include: listInclude(),
+    const row = await tx.shortLink.update({
+      where: { code },
+      data: {
+        moderationStatus: "pending",
+        moderationNote: "",
+        reviewedAt: null,
+        url: input.url,
+        title: input.title,
+        tags: input.tags,
+        expiresAt,
+        passwordHash,
+      },
+      include: listInclude(),
+    });
+    return mapListed(row);
   });
-  return mapListed(row);
 }
 
 export async function deleteLinkForUser(

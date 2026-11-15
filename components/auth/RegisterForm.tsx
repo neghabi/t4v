@@ -2,6 +2,7 @@
 
 import { readApiResponse } from "@/lib/readApiResponse";
 
+import { IdentityFields } from "@/components/IdentityFields";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,13 +16,19 @@ export function RegisterForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const fields = new FormData(e.currentTarget as HTMLFormElement);
     setError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          ...Object.fromEntries(fields),
+          consent: fields.get("consent") === "on",
+        }),
       });
       const data = await readApiResponse<{ error?: string }>(res);
       if (!res.ok) {
@@ -76,6 +83,7 @@ export function RegisterForm() {
           required
         />
       </div>
+      <IdentityFields />
       {error ? (
         <p className="text-sm text-rose-600 dark:text-rose-300" role="alert">
           {error}

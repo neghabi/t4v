@@ -34,7 +34,7 @@ function formatDate(ms: number) {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; q?: string }>;
 }) {
   const jar = await cookies();
   const authed = await verifyDashboardToken(
@@ -53,7 +53,7 @@ export default async function AdminPage({
   }
 
   const params = await searchParams;
-  const linksPage = await listAllLinks(parseLinkPage(params.page));
+  const linksPage = await listAllLinks(parseLinkPage(params.page), params);
   const rows = linksPage.links;
   const users = await listUsersForAdmin();
   const topUps = await listTopUpsForAdmin();
@@ -95,6 +95,9 @@ export default async function AdminPage({
           </div>
 
           <nav className="mt-7 flex flex-wrap gap-3" aria-label="منوی مدیریت">
+            <Link className="button-secondary" href="/admin/settings">
+              تنظیمات ایمیل و پیامک
+            </Link>
             <Link className="button-primary" href="/admin">
               مدیریت سراسری
             </Link>
@@ -122,6 +125,32 @@ export default async function AdminPage({
           />
 
           <AdminDeploymentPanel />
+          <form className="mt-8 flex flex-wrap gap-3" action="/admin">
+            <label className="field-label flex-1">
+              جست‌وجوی لینک‌ها
+              <input
+                name="q"
+                className="field"
+                defaultValue={params.q}
+                placeholder="مقصد، عنوان یا شناسه"
+              />
+            </label>
+            <label className="field-label">
+              وضعیت نظارت
+              <select
+                name="status"
+                className="field"
+                defaultValue={params.status ?? ""}
+              >
+                <option value="">همه</option>
+                <option value="pending">در انتظار بررسی</option>
+                <option value="approved">تأیید شده</option>
+                <option value="suspended">معلق</option>
+                <option value="rejected">رد شده</option>
+              </select>
+            </label>
+            <button className="button-secondary self-end">اعمال فیلتر</button>
+          </form>
 
           <div className="mt-10 overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
             <table className="w-full min-w-[800px] text-right text-sm">
@@ -226,7 +255,7 @@ export default async function AdminPage({
               </tbody>
             </table>
           </div>
-          <LinkPagination data={linksPage} pathname="/admin" />
+          <LinkPagination data={linksPage} pathname="/admin" filters={params} />
         </div>
       </div>
     </div>

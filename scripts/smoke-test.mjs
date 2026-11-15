@@ -68,6 +68,11 @@ try {
     [other, "other"],
   ]) {
     const result = await client("/api/auth/register", "POST", {
+      fullName: "Smoke Test User",
+      phone: `+989${randomBytes(5).readUIntBE(0, 5).toString().padStart(10, "0").slice(-10)}`,
+      activityType: "personal",
+      intendedUse: "Testing local functionality",
+      consent: true,
       email: `smoke-${marker}-${name}@t4v.test`,
       password,
     });
@@ -75,6 +80,10 @@ try {
     users.push(result.data.user.id);
   }
   pass("registration and authenticated session");
+  await pool.query(
+    "UPDATE users SET email_verified_at=NOW(),phone_verified_at=NOW(),identity_status='approved' WHERE id=ANY($1)",
+    [users],
+  );
   assert.equal(
     (await visitor("/api/shorten", "POST", { url: "https://example.com" }))
       .status,
@@ -90,6 +99,10 @@ try {
   assert.equal(made.status, 200, JSON.stringify(made.data));
   assert.equal(made.data.credits, 117);
   const code = made.data.code;
+  await pool.query(
+    "UPDATE short_links SET moderation_status='approved' WHERE code=$1",
+    [code],
+  );
   pass("shortening debits exactly three credits");
 
   const free = await owner("/api/qr", "POST", {
@@ -143,6 +156,10 @@ try {
     (await owner(`/api/links/${code}`, "PATCH", { password: "new-password" }))
       .status,
     200,
+  );
+  await pool.query(
+    "UPDATE short_links SET moderation_status='approved' WHERE code=$1",
+    [code],
   );
   assert.match((await visitor(`/${code}`)).data, /gate-pw/);
   assert.equal(
@@ -326,6 +343,10 @@ try {
   assert.equal(exported.status, 200);
   assert.match(exported.data, /Campaign test/);
   pass("metadata search and CSV export are scoped to the account");
+  await pool.query(
+    "UPDATE short_links SET moderation_status='approved' WHERE code=$1",
+    [customCode],
+  );
   const redirected = await visitor(`/${customCode}`);
   assert.equal(redirected.status, 307);
   for (let attempt = 0; attempt < 30; attempt++) {

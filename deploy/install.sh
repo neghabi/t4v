@@ -52,10 +52,15 @@ docker compose \
   -f docker-compose.production.yml \
   up --build -d --wait --wait-timeout 300
 
-ADMIN_PASSWORD="$(grep -m1 '^DASHBOARD_SECRET=' "${ENV_FILE}" | cut -d= -f2-)"
+mkdir -p "${PROJECT_DIR}/.local"
+chmod 700 "${PROJECT_DIR}/.local"
+docker compose run --rm --no-deps \
+  -e "PUBLIC_SHORT_URL_BASE=https://${APP_DOMAIN}" \
+  -v "${PROJECT_DIR}/.local:/app/.local" \
+  migrate node scripts/create-admin.mjs admin
 
 echo
 echo "T4V با موفقیت راه‌اندازی شد."
 echo "Website: https://${APP_DOMAIN}"
 echo "Admin:   https://${APP_DOMAIN}/admin"
-echo "Admin password: ${ADMIN_PASSWORD}"
+echo "Admin credentials: .local/admin-admin.json (private file; existing accounts are preserved)"

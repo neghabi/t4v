@@ -1,3 +1,4 @@
+import { requireAdminActor, moderateLink } from "@/lib/moderation";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/adminRequest";
 import { prisma } from "@/lib/db";
@@ -28,9 +29,26 @@ export async function PATCH(
   });
   if (!owner)
     return NextResponse.json({ error: "لینک پیدا نشد." }, { status: 404 });
+  const body = await request.json().catch(() => null);
+  if (body && typeof body.moderationStatus === "string") {
+    try {
+      const actor = await requireAdminActor(request);
+      return NextResponse.json(
+        await moderateLink(
+          code,
+          body.moderationStatus,
+          typeof body.note === "string" ? body.note : "",
+          actor,
+          body.revision,
+        ),
+      );
+    } catch (error) {
+      return apiErrorResponse(error);
+    }
+  }
   let input;
   try {
-    input = parseLinkUpdateInput(await request.json());
+    input = parseLinkUpdateInput(body);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "درخواست نامعتبر است." },

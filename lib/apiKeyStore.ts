@@ -124,7 +124,7 @@ export async function authenticateApiKey(
     where: { keyHash: hashApiKey(secret) },
     include: { user: true },
   });
-  if (!row) return null;
+  if (!row || row.user.accountStatus !== "active") return null;
   const requiredScope = request.method === "GET" ? "links:read" : "links:write";
   if (!row.scopes.includes(requiredScope)) return null;
 

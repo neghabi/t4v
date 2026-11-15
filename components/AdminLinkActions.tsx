@@ -7,6 +7,7 @@ export function AdminLinkActions({ link }: { link: ListedLink }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
   const router = useRouter();
   const close = useCallback(() => setEditing(false), []);
   useDialogFocus(editing, close);
@@ -34,6 +35,69 @@ export function AdminLinkActions({ link }: { link: ListedLink }) {
   }
   return (
     <>
+      <div className="mb-3 grid gap-2">
+        <span className="text-xs font-bold">
+          {{
+            pending: "در انتظار تأیید مدیر",
+            approved: "تأیید شده",
+            suspended: "معلق",
+            rejected: "رد شده",
+          }[link.moderationStatus] ?? link.moderationStatus}
+        </span>
+        {link.moderationNote && (
+          <p className="text-xs">{link.moderationNote}</p>
+        )}
+        <label className="field-label text-xs">
+          توضیح تصمیم
+          <input
+            className="field"
+            maxLength={1000}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        </label>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <button
+            disabled={busy}
+            className="text-emerald-700 dark:text-emerald-300"
+            onClick={() =>
+              void mutate("PATCH", {
+                moderationStatus: "approved",
+                revision: link.updatedAt,
+                note,
+              })
+            }
+          >
+            تأیید و فعال‌سازی
+          </button>
+          <button
+            disabled={busy}
+            className="text-amber-700 dark:text-amber-300"
+            onClick={() =>
+              void mutate("PATCH", {
+                moderationStatus: "suspended",
+                revision: link.updatedAt,
+                note,
+              })
+            }
+          >
+            تعلیق لینک
+          </button>
+          <button
+            disabled={busy}
+            className="text-rose-700 dark:text-rose-300"
+            onClick={() =>
+              void mutate("PATCH", {
+                moderationStatus: "rejected",
+                revision: link.updatedAt,
+                note,
+              })
+            }
+          >
+            رد لینک
+          </button>
+        </div>
+      </div>
       <div className="flex gap-2">
         <button
           disabled={busy}

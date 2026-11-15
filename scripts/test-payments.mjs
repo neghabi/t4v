@@ -244,6 +244,11 @@ try {
     "/api/auth/register",
     "POST",
     {
+      fullName: "Payment Test User",
+      phone: `+989${randomBytes(5).readUIntBE(0, 5).toString().padStart(10, "0").slice(-10)}`,
+      activityType: "personal",
+      intendedUse: "Testing local payments",
+      consent: true,
       email: `payments-${marker}@t4v.test`,
       password: randomBytes(18).toString("hex"),
     },

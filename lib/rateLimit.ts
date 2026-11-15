@@ -28,8 +28,9 @@ export async function enforceRateLimit(
   scope: string,
   limit: number,
   windowMs: number,
+  accountIdentity?: string,
 ): Promise<NextResponse | null> {
-  const key = rateLimitKey(scope, requestIdentity(request));
+  const key = rateLimitKey(scope, accountIdentity ?? requestIdentity(request));
   const resetAt = new Date(Date.now() + windowMs);
 
   const rows = await prisma.$queryRaw<RateLimitRow[]>`

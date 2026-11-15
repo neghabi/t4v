@@ -10,6 +10,13 @@ export async function getWorkspaceSummary(userId: string) {
     prisma.shortLink.count({
       where: {
         userId,
+        moderationStatus: "approved",
+        user: {
+          accountStatus: "active",
+          identityStatus: "approved",
+          emailVerifiedAt: { not: null },
+          phoneVerifiedAt: { not: null },
+        },
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
     }),
