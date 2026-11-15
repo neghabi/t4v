@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:runtime": "node scripts/test-runtime-check.mjs",
     "test:reporting": "node scripts/test-reporting.mjs",
     "test:identity": "node scripts/test-identity.mjs",
     "test:notifications": "node scripts/test-notification-providers.mjs",

@@ -30,8 +30,6 @@ try {
     ".env.example",
     ".gitignore",
     "AGENTS.md",
-    "docker-compose.yml",
-    "docker-compose.production.yml",
     "Dockerfile",
     "eslint.config.mjs",
     "next-env.d.ts",
@@ -59,7 +57,8 @@ try {
   Write-Host "SHA256: $hash"
   Write-Host ""
   Write-Host "Upload the ZIP, extract it, then run:" -ForegroundColor Cyan
-  Write-Host "chmod +x deploy/install.sh && sudo ./deploy/install.sh t4v.ir"
+  Write-Host "Existing db/web server: bash deploy/update-existing.sh"
+  Write-Host "Existing Compose files and .env are intentionally not included or overwritten."
 } finally {
   if (
     (Test-Path -LiteralPath $stagingPath) -and

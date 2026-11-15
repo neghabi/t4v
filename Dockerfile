@@ -30,7 +30,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
 
-COPY scripts/create-admin.mjs scripts/diagnose-database.mjs scripts/setup-database.mjs ./scripts/
+COPY scripts/create-admin.mjs scripts/diagnose-database.mjs scripts/setup-database.mjs scripts/check-runtime.mjs ./scripts/
 
 CMD ["npx", "prisma", "migrate", "deploy"]
 
@@ -57,8 +57,10 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/check-runtime.mjs ./scripts/check-runtime.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/migrations ./prisma/migrations
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node scripts/check-runtime.mjs && exec node server.js"]

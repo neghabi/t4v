@@ -13,6 +13,7 @@ export class ApiError extends Error {
 export function apiErrorResponse(error: unknown) {
   const requestId = randomUUID();
   const databaseUnavailable = isDatabaseUnavailable(error);
+  const schemaMismatch = hasSchemaError(error);
   if (!(error instanceof ApiError))
     console.error(
       JSON.stringify({
@@ -26,6 +27,7 @@ export function apiErrorResponse(error: unknown) {
             ? String(error.code)
             : "unknown",
         databaseUnavailable,
+        schemaMismatch,
       }),
     );
   return NextResponse.json(
@@ -33,29 +35,53 @@ export function apiErrorResponse(error: unknown) {
       error:
         error instanceof ApiError
           ? error.message
-          : databaseUnavailable
-            ? "ارتباط با پایگاه داده برقرار نیست. لطفاً کمی بعد دوباره تلاش کنید."
-            : "درخواست انجام نشد. کمی بعد دوباره تلاش کنید.",
+          : schemaMismatch
+            ? "نسخه پایگاه داده با برنامه هماهنگ نیست. مدیر سامانه باید به‌روزرسانی پایگاه داده را تکمیل کند."
+            : databaseUnavailable
+              ? "ارتباط با پایگاه داده برقرار نیست. لطفاً کمی بعد دوباره تلاش کنید."
+              : "درخواست انجام نشد. کمی بعد دوباره تلاش کنید.",
       code:
         error instanceof ApiError
           ? error.code
-          : databaseUnavailable
-            ? "database_unavailable"
-            : "internal_error",
+          : schemaMismatch
+            ? "database_schema_mismatch"
+            : databaseUnavailable
+              ? "database_unavailable"
+              : "internal_error",
       requestId,
     },
     {
       status:
         error instanceof ApiError
           ? error.status
-          : databaseUnavailable
+          : schemaMismatch
             ? 503
-            : 500,
+            : databaseUnavailable
+              ? 503
+              : 500,
       headers: {
         "Cache-Control": "private, no-store",
         "X-Request-Id": requestId,
       },
     },
+  );
+}
+
+function hasSchemaError(error: unknown, depth = 0): boolean {
+  if (!error || typeof error !== "object" || depth > 5) return false;
+  const value = error as {
+    code?: string;
+    originalCode?: string;
+    cause?: unknown;
+    meta?: { driverAdapterError?: unknown };
+    errors?: unknown[];
+  };
+  return (
+    ["P2021", "P2022", "42P01", "42703"].includes(value.code ?? "") ||
+    ["42P01", "42703"].includes(value.originalCode ?? "") ||
+    hasSchemaError(value.cause, depth + 1) ||
+    hasSchemaError(value.meta?.driverAdapterError, depth + 1) ||
+    Boolean(value.errors?.some((item) => hasSchemaError(item, depth + 1)))
   );
 }
 

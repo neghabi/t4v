@@ -48,6 +48,7 @@ const dependencies = {
     },
   },
   "@/lib/userStore": {
+    getLedger: async () => [],
     createUser: async () => {
       throw new api.ApiError("Invalid email");
     },
@@ -68,6 +69,18 @@ const dependencies = {
 const register = load("app/api/auth/register/route.ts", dependencies);
 const login = load("app/api/auth/login/route.ts", dependencies);
 const admin = load("app/api/admin/users/route.ts", dependencies);
+const me = load("app/api/auth/me/route.ts", {
+  ...dependencies,
+  "@/lib/auth/getSessionUser": {
+    getSessionUser: async () => {
+      throw unavailable;
+    },
+  },
+});
+assert.equal((await me.GET()).status, 503);
+const schemaResponse = api.apiErrorResponse({ code: "P2022" });
+assert.equal(schemaResponse.status, 503);
+assert.equal((await schemaResponse.json()).code, "database_schema_mismatch");
 const request = () =>
   new Request("http://localhost/api/test", {
     method: "POST",

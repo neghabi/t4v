@@ -5,6 +5,11 @@ APP_DOMAIN="${1:-t4v.ir}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${PROJECT_DIR}/.env"
 
+if [[ -f "${PROJECT_DIR}/compose.auth-repair.yml" ]]; then
+  echo "Existing db/web deployment detected. Preserve its configuration and run: bash deploy/update-existing.sh"
+  exit 1
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker نصب نیست. ابتدا Docker Engine و افزونه Docker Compose را نصب کنید."
   exit 1
